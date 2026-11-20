@@ -37,11 +37,11 @@ public sealed class CoreBehaviorTests
     }
 
     [Fact]
-    public void ConfigOmitsHlsAudioSourceWhenFfmpegIsUnavailable()
+    public void AudioConfigOmitsFfmpegSourceWhenFfmpegIsUnavailable()
     {
         var camera = new Camera { Ip = "192.168.0.10", User = "viewer" };
 
-        var config = Go2RtcConfigBuilder.Build([(camera, "secret")], null, hlsMode: true);
+        var config = Go2RtcConfigBuilder.Build([(camera, "secret")], null, audioMode: true);
 
         Assert.Contains("cam_", config);
         Assert.Contains("stream1", config);
@@ -50,7 +50,7 @@ public sealed class CoreBehaviorTests
     }
 
     [Fact]
-    public void HlsConfigAddsTheSpecifiedFfmpegAudioSourceForEveryStream()
+    public void AudioConfigAddsTheSpecifiedFfmpegAudioSourceForEveryStream()
     {
         var camera = new Camera
         {
@@ -59,7 +59,7 @@ public sealed class CoreBehaviorTests
             User = "viewer"
         };
 
-        var config = Go2RtcConfigBuilder.Build([(camera, "secret")], @"C:\ffmpeg.exe", hlsMode: true);
+        var config = Go2RtcConfigBuilder.Build([(camera, "secret")], @"C:\ffmpeg.exe", audioMode: true);
 
         Assert.Contains("bin: 'C:\\ffmpeg.exe'", config);
         Assert.Contains($"ffmpeg:{camera.StreamName(StreamQuality.Hd)}#audio=aac", config);
@@ -69,16 +69,16 @@ public sealed class CoreBehaviorTests
     [Fact]
     public void EmptyRelayConfigUsesAnEmptyStreamsMap()
     {
-        var config = Go2RtcConfigBuilder.Build([], null, hlsMode: false);
+        var config = Go2RtcConfigBuilder.Build([], null, audioMode: false);
 
         Assert.Contains("streams: {}", config);
     }
 
     [Fact]
-    public void MseConfigQuotesWindowsPathsWithoutAddingAudioSources()
+    public void VideoOnlyConfigQuotesWindowsPathsWithoutAddingAudioSources()
     {
         var camera = new Camera { Ip = "192.0.2.10", User = "viewer" };
-        var config = Go2RtcConfigBuilder.Build([(camera, "example")], @"C:\Tools\Editor's FFmpeg\ffmpeg.exe", hlsMode: false);
+        var config = Go2RtcConfigBuilder.Build([(camera, "example")], @"C:\Tools\Editor's FFmpeg\ffmpeg.exe", audioMode: false);
 
         Assert.Contains(@"  bin: 'C:\Tools\Editor''s FFmpeg\ffmpeg.exe'", config);
         Assert.Contains($"  {camera.StreamName(StreamQuality.Hd)}: 'rtsp://", config);

@@ -766,7 +766,7 @@ public sealed class AppModel
     private IReadOnlyDictionary<Guid, ScheduleWindow> CurrentWindows(DateTimeOffset now) =>
         ScheduleCalculator.CurrentWindows(now, _timeZone, Settings.ScheduleRules, EligibleCameraIds());
     private string BuildConfig() => Go2RtcConfigBuilder.Build(Settings.Cameras.Select(c => (c, GetPassword(c.Id))),
-        _ffmpeg is not null && File.Exists(_ffmpeg) ? _ffmpeg : null, Settings.EffectivePlayerMode == "hls");
+        _ffmpeg is not null && File.Exists(_ffmpeg) ? _ffmpeg : null, audioMode: Settings.EffectivePlayerMode == "hls");
 
     private static void TryDelete(string path)
     {

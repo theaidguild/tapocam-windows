@@ -1,5 +1,5 @@
 (() => {
-    const videoOnly = tapoGrid || new URLSearchParams(location.search).get('mode') === 'mse';
+    const videoOnly = tapoGrid || new URLSearchParams(location.search).get('media') === 'video';
     if (!videoOnly) return;
     const start = () => {
         if (!document.body || !document.head) return;

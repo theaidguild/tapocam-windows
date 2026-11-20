@@ -131,17 +131,19 @@ internal sealed class CameraTile : Border
             Stop();
             return;
         }
-        var mode = focused ? settings.EffectivePlayerMode : "hls";
-        var url = focused ? PlayerUrlBuilder.Focused(camera, settings.EffectiveViewQuality, mode) : PlayerUrlBuilder.Grid(camera);
+        var audioEnabled = focused && settings.EffectivePlayerMode == "hls";
+        var url = focused
+            ? PlayerUrlBuilder.Focused(camera, settings.EffectiveViewQuality, audioEnabled)
+            : PlayerUrlBuilder.Grid(camera);
         if (player is null)
         {
-            player = new LivePlayer(url, mode, !focused);
+            player = new LivePlayer(url, audioEnabled, !focused);
             video.Children.Add(player);
             if (!focused)
                 player.IsHitTestVisible = false;
         }
         else
-            player.SetSource(url, mode);
+            player.SetSource(url, audioEnabled);
         player.Debug = settings.DebugPlayer;
     }
 

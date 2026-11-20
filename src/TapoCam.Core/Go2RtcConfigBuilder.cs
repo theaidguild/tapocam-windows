@@ -8,7 +8,7 @@ public static class Go2RtcConfigBuilder
     public static string Build(
         IEnumerable<(Camera Camera, string Password)> cameras,
         string? ffmpegPath,
-        bool hlsMode)
+        bool audioMode)
     {
         ArgumentNullException.ThrowIfNull(cameras);
         var configured = cameras
@@ -45,7 +45,7 @@ public static class Go2RtcConfigBuilder
             {
                 var name = camera.StreamName(quality);
                 var url = camera.RtspUrl(quality, password);
-                if (hlsMode && !string.IsNullOrWhiteSpace(ffmpegPath))
+                if (audioMode && !string.IsNullOrWhiteSpace(ffmpegPath))
                 {
                     yaml.Append("  ").Append(name).AppendLine(":")
                         .Append("    - ").AppendLine(Quote(url))

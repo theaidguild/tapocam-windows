@@ -39,16 +39,16 @@ internal sealed class LivePlayer : Grid, IDisposable
     private readonly DispatcherTimer retry = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer debug = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly bool grid;
-    private string mode;
+    private bool audioEnabled;
     private Uri source;
     private bool disposed;
     private bool initialized;
     private bool debugBusy;
 
-    public LivePlayer(string url, string mode, bool grid)
+    public LivePlayer(string url, bool audioEnabled, bool grid)
     {
         this.grid = grid;
-        this.mode = mode;
+        this.audioEnabled = audioEnabled;
         source = new Uri(url);
         Background = Brushes.Black;
         Children.Add(view);
@@ -75,12 +75,12 @@ internal sealed class LivePlayer : Grid, IDisposable
         }
     }
 
-    public void SetSource(string url, string playerMode)
+    public void SetSource(string url, bool enableAudio)
     {
         var uri = new Uri(url);
         if (uri == source)
             return;
-        mode = playerMode;
+        audioEnabled = enableAudio;
         source = uri;
         retry.Stop();
         if (initialized && !disposed)
@@ -90,7 +90,7 @@ internal sealed class LivePlayer : Grid, IDisposable
     private void Navigate()
     {
         var core = view.CoreWebView2;
-        core.IsMuted = grid || mode == "mse";
+        core.IsMuted = grid || !audioEnabled;
         core.Navigate(source.AbsoluteUri);
     }
 
@@ -168,7 +168,7 @@ internal sealed class LivePlayer : Grid, IDisposable
         debugBusy = true;
         try
         {
-            var selectedMode = mode;
+            var selectedMode = audioEnabled ? "mse-audio" : "mse-video";
             var json = await view.CoreWebView2.ExecuteScriptAsync(DiagnosticsScript);
             if (disposed || !debug.IsEnabled || json == "null")
                 return;

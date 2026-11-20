@@ -18,16 +18,17 @@ public sealed class CameraInfrastructureTests
     }
 
     [Fact]
-    public void PlayerUsesFixedSdHlsInGridAndTheConfiguredModeAndQualityInFocus()
+    public void PlayerUsesMutedMseInGridAndConfiguredQualityAndAudioInFocus()
     {
         var camera = new Camera { Id = Guid.Parse("12345678-90ab-cdef-1234-567890abcdef") };
         var settings = new AppSettings { ViewQuality = "hd", PlayerMode = "mse" };
         const string prefix = "http://127.0.0.1:11984/stream.html?src=cam_1234567890abcdef1234567890abcdef";
 
-        Assert.Equal(prefix + "_sd&mode=hls", PlayerUrlBuilder.Grid(camera));
-        Assert.Equal(prefix + "_hd&mode=mse", PlayerUrlBuilder.Focused(
-            camera, settings.EffectiveViewQuality, settings.EffectivePlayerMode));
-        Assert.Equal(prefix + "_sd&mode=hls", PlayerUrlBuilder.Focused(camera, StreamQuality.Sd, "invalid?mode=mse"));
+        Assert.Equal(prefix + "_sd&mode=mse&media=video", PlayerUrlBuilder.Grid(camera));
+        Assert.Equal(prefix + "_hd&mode=mse&media=video%2Caudio",
+            PlayerUrlBuilder.Focused(camera, settings.EffectiveViewQuality, includeAudio: true));
+        Assert.Equal(prefix + "_sd&mode=mse&media=video",
+            PlayerUrlBuilder.Focused(camera, StreamQuality.Sd, includeAudio: false));
     }
 
     [Fact]
