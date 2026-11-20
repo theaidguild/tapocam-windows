@@ -79,3 +79,4 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       version: ${{ needs.release-version.outputs.version }}
+      skip_tests: true

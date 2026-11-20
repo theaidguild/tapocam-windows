@@ -9,6 +9,11 @@ on:
         description: Version to release, without the leading 'v'.
         required: true
         type: string
+      skip_tests:
+        description: Skip tests already run by the calling workflow.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -39,7 +44,12 @@ jobs:
           "VERSION=$version" >> $env:GITHUB_ENV
       - name: Build installer and portable ZIP
         shell: pwsh
-        run: ./build.ps1 -Version $env:VERSION
+        env:
+          SKIP_TESTS: ${{ inputs.skip_tests }}
+        run: |
+          $buildArgs = @{ Version = $env:VERSION }
+          if ($env:SKIP_TESTS -eq 'true') { $buildArgs.SkipTests = $true }
+          ./build.ps1 @buildArgs
       - name: Publish GitHub Release
         shell: pwsh
         env:

@@ -1,7 +1,8 @@
 #requires -Version 7.0
 [CmdletBinding()]
 param(
-    [string] $Version
+    [string] $Version,
+    [switch] $SkipTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -90,8 +91,10 @@ try {
     }
     $iscc = Find-InnoSetupCompiler
 
-    Write-Host '==> Running tests'
-    Invoke-Dotnet test (Join-Path $PSScriptRoot 'TapoCam.sln') --configuration Release
+    if (-not $SkipTests) {
+        Write-Host '==> Running tests'
+        Invoke-Dotnet test (Join-Path $PSScriptRoot 'TapoCam.sln') --configuration Release
+    }
     Write-Host '==> Publishing the app'
     $publish = Join-Path $stage 'publish'
     Invoke-Dotnet publish $project --configuration Release --runtime win-x64 --self-contained true `
