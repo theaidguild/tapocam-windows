@@ -24,22 +24,26 @@ jobs:
       - name: Test solution (Core and App)
         run: dotnet test TapoCam.sln --configuration Release --no-build
 
-  push-version-tag:
+  release-version:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build-test
     runs-on: windows-latest
     timeout-minutes: 5
-    permissions:
-      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      needed: ${{ steps.version.outputs.needed }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          token: ${{ secrets.RELEASE_TOKEN }}
+          persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: 8.0.x
-      - name: Push project-version tag
+      - name: Check whether this version is already released
+        id: version
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $version = (& dotnet msbuild src/TapoCam.App/TapoCam.App.csproj '-nologo' '-getProperty:Version' '-p:Configuration=Release').Trim()
           if ($LASTEXITCODE -ne 0) {
@@ -48,16 +52,17 @@ jobs:
           if ($version -cnotmatch '\A(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?\z') {
             throw "Invalid project version '$version'; expected X.Y.Z or X.Y.Z-prerelease."
           }
-          $tag = "v$version"
-          git ls-remote --exit-code --tags origin "refs/tags/$tag" | Out-Null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Tag $tag already exists; not moving it."
-            exit 0
-          }
-          if ($LASTEXITCODE -ne 2) {
-            throw "Could not check whether tag $tag already exists."
-          }
-          git tag $tag
-          if ($LASTEXITCODE -ne 0) { throw "Could not create tag $tag." }
-          git push origin $tag
-          if ($LASTEXITCODE -ne 0) { throw "Could not push tag $tag." }
+          gh release view "v$version" --repo $env:GITHUB_REPOSITORY --json tagName 2>$null | Out-Null
+          $needed = if ($LASTEXITCODE -eq 0) { 'false' } else { 'true' }
+          if ($needed -eq 'false') { Write-Host "Release v$version already exists; nothing to publish." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "needed=$needed" >> $env:GITHUB_OUTPUT
+
+  release:
+    needs: release-version
+    if: needs.release-version.outputs.needed == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.release-version.outputs.version }}

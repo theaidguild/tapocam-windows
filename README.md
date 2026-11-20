@@ -64,4 +64,4 @@ O script testa a solução e gera em `dist\` o instalador `TapoCam-<versão>-win
 
 ### Distribuir um release
 
-Envie uma tag `v<versão>` para que o fluxo de release gere os arquivos e os anexe ao Release. O go2rtc v1.9.15 (MIT) é baixado de um release específico e verificado com SHA-256. O FFmpeg não é distribuído com o TapoCam; o instalador o obtém pelo `winget` diretamente do publicador. Consulte [os avisos de terceiros](packaging/licenses/THIRD-PARTY-NOTICES.txt).
+Cada push na `main` que passa no CI publica automaticamente o Release `v<versão>` (com instalador e ZIP) caso ele ainda não exista; para lançar uma nova versão, aumente `VersionPrefix` em `Directory.Build.props`. Enviar manualmente uma tag `v<versão>` também dispara o fluxo de release. O go2rtc v1.9.15 (MIT) é baixado de um release específico e verificado com SHA-256. O FFmpeg não é distribuído com o TapoCam; o instalador o obtém pelo `winget` diretamente do publicador. Consulte [os avisos de terceiros](packaging/licenses/THIRD-PARTY-NOTICES.txt).
