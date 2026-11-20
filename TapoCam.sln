@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TapoCam.App", "src\TapoCam.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TapoCam.Core.Tests", "tests\TapoCam.Core.Tests\TapoCam.Core.Tests.csproj", "{2F602A86-B071-4352-B7E4-84592C4D8B4A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TapoCam.App.Tests", "tests\TapoCam.App.Tests\TapoCam.App.Tests.csproj", "{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,18 @@ Global
 		{2F602A86-B071-4352-B7E4-84592C4D8B4A}.Release|x64.Build.0 = Release|Any CPU
 		{2F602A86-B071-4352-B7E4-84592C4D8B4A}.Release|x86.ActiveCfg = Release|Any CPU
 		{2F602A86-B071-4352-B7E4-84592C4D8B4A}.Release|x86.Build.0 = Release|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Debug|x64.Build.0 = Debug|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Debug|x86.Build.0 = Debug|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Release|x64.ActiveCfg = Release|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Release|x64.Build.0 = Release|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Release|x86.ActiveCfg = Release|Any CPU
+		{CC5B5AD0-26BD-4ED6-BFD8-E0A732109319}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

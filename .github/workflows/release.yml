@@ -1,0 +1,51 @@
+name: Windows Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 8.0.x
+      - name: Build portable ZIP and stage FFmpeg Corresponding Source
+        shell: pwsh
+        env:
+          FFMPEG_SOURCE_URL: ${{ vars.FFMPEG_SOURCE_URL }}
+          FFMPEG_SOURCE_SHA256: ${{ vars.FFMPEG_SOURCE_SHA256 }}
+        run: |
+          $sourceUri = $env:FFMPEG_SOURCE_URL -as [uri]
+          if (-not $sourceUri -or -not $sourceUri.IsAbsoluteUri -or $sourceUri.Scheme -ne 'https' -or
+              $env:FFMPEG_SOURCE_SHA256 -notmatch '\A[0-9a-f]{64}\z') {
+            throw 'Configure FFMPEG_SOURCE_URL (HTTPS) and FFMPEG_SOURCE_SHA256 for the reviewed, matching Corresponding Source before releasing.'
+          }
+          $sourceDir = New-Item -Path (Join-Path $PWD 'obj/release-source') -ItemType Directory -Force
+          $sourceZip = Join-Path $sourceDir.FullName 'ffmpeg-source.zip'
+          Invoke-WebRequest -Uri $sourceUri -OutFile $sourceZip -AllowInsecureRedirect:$false
+          ./build.ps1 -Version $env:GITHUB_REF_NAME.Substring(1) -FfmpegSourceArchive $sourceZip -FfmpegSourceSha256 $env:FFMPEG_SOURCE_SHA256
+      - name: Attach ZIP and Corresponding Source to GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $options = @('--verify-tag', '--generate-notes')
+          if ($version.Contains('-')) { $options += '--prerelease' }
+          gh release create $env:GITHUB_REF_NAME "dist/TapoCam-$version-win-x64.zip" `
+            'dist/ffmpeg-9.0.2-essentials-corresponding-source.zip' @options

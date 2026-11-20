@@ -13,16 +13,21 @@ public sealed class Camera
     public int Fps { get; set; } = 25;
     public bool Enabled { get; set; } = true;
 
-    public string Host => Ip.Trim();
-    public string Username => User.Trim();
+    [JsonIgnore]
+    public string Host => Ip?.Trim() ?? "";
+    [JsonIgnore]
+    public string Username => User?.Trim() ?? "";
+    [JsonIgnore]
     public int EffectiveFps => Math.Max(1, Fps);
+    [JsonIgnore]
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? "Câmera" : Name.Trim();
+    [JsonIgnore]
     public string Slug => FileNaming.Slug(DisplayName);
 
     public bool IsConfigured(string? password) =>
         !string.IsNullOrWhiteSpace(Host) &&
         !string.IsNullOrWhiteSpace(Username) &&
-        !string.IsNullOrEmpty(password);
+        !string.IsNullOrWhiteSpace(password);
 
     public bool IsActive(string? password) => Enabled && IsConfigured(password);
 
@@ -38,11 +43,12 @@ public sealed class Camera
 
     public static string NewName(IEnumerable<string> existingNames)
     {
-        var names = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var names = existingNames.ToList();
+        var usedNames = names.ToHashSet(StringComparer.OrdinalIgnoreCase);
         for (var number = names.Count + 1; ; number++)
         {
             var candidate = $"Câmera {number}";
-            if (!names.Contains(candidate))
+            if (!usedNames.Contains(candidate))
                 return candidate;
         }
     }

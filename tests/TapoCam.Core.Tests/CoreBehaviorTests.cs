@@ -75,6 +75,18 @@ public sealed class CoreBehaviorTests
     }
 
     [Fact]
+    public void MseConfigQuotesWindowsPathsWithoutAddingAudioSources()
+    {
+        var camera = new Camera { Ip = "192.0.2.10", User = "viewer" };
+        var config = Go2RtcConfigBuilder.Build([(camera, "example")], @"C:\Tools\Editor's FFmpeg\ffmpeg.exe", hlsMode: false);
+
+        Assert.Contains(@"  bin: 'C:\Tools\Editor''s FFmpeg\ffmpeg.exe'", config);
+        Assert.Contains($"  {camera.StreamName(StreamQuality.Hd)}: 'rtsp://", config);
+        Assert.Contains($"  {camera.StreamName(StreamQuality.Sd)}: 'rtsp://", config);
+        Assert.DoesNotContain("audio=aac", config);
+    }
+
+    [Fact]
     public void SlugsAndManagedFileNamesFollowTheNamingRules()
     {
         Assert.Equal("sala-de-estar", FileNaming.Slug("Sala de Estar!"));
@@ -90,6 +102,20 @@ public sealed class CoreBehaviorTests
     }
 
     [Fact]
+    public void ManagedNameFormattingRoundTripsAndSupportsLegacyNames()
+    {
+        var timestamp = new DateTime(2024, 2, 29, 23, 59, 59);
+
+        Assert.Equal(new ParsedManagedFile(ManagedFileType.Video, "camera-1", timestamp),
+            FileNaming.Parse(FileNaming.VideoName("Câmera 1", timestamp)));
+        Assert.Equal(new ParsedManagedFile(ManagedFileType.Photo, "camera-1", timestamp),
+            FileNaming.Parse(FileNaming.PhotoName("Câmera 1", timestamp)));
+        Assert.Equal(new ParsedManagedFile(ManagedFileType.Video, null, timestamp),
+            FileNaming.Parse("tapo_20240229_235959.mp4"));
+        Assert.Null(FileNaming.Parse("snap_20240229_235959.mp4"));
+    }
+
+    [Fact]
     public void BackoffCapsAndResets()
     {
         var backoff = new RetryBackoff();
@@ -99,15 +125,23 @@ public sealed class CoreBehaviorTests
         Assert.Equal(5, backoff.NextSeconds);
     }
 
-    [Fact]
-    public void RecordingArgumentsPreserveFragmentedMp4AndOptionalAudio()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RecordingArgumentsPreserveFragmentedMp4AndOptionalAudio(bool audio)
     {
-        var args = FfmpegCommandBuilder.Recording("rtsp://127.0.0.1:18554/cam", "clip.mp4", 25, audio: false);
+        const string input = "rtsp://127.0.0.1:18554/cam";
+        string[] expected =
+        [
+            "-loglevel", "warning", "-nostats", "-rtsp_transport", "tcp", "-fflags", "+genpts", "-i", input,
+            "-map", "0:v", "-c:v", "copy", "-bsf:v", "setts=ts='if(eq(N,0),TS,if(lt(TS,PREV_OUTPTS+1800),PREV_OUTPTS+3600,TS))'",
+            .. (audio ? new[] { "-map", "0:a:0?", "-af", "asetpts=N/SR/TB+STARTPTS", "-c:a", "aac",
+                "-ar", "16000", "-ac", "1", "-b:a", "48k" } : ["-an"]),
+            "-movflags", "+frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", "clip.mp4"
+        ];
 
-        Assert.Contains("setts=ts='if(eq(N,0),TS,if(lt(TS,PREV_OUTPTS+1800),PREV_OUTPTS+3600,TS))'", args);
-        Assert.Contains("+frag_keyframe+empty_moov+default_base_moof", args);
-        Assert.Contains("-an", args);
-        Assert.DoesNotContain("-nostdin", args);
+        Assert.Equal(expected, FfmpegCommandBuilder.Recording(input, "clip.mp4", 25, audio));
+        Assert.Equal(3600, FfmpegCommandBuilder.FrameDurationTicks(25));
         Assert.Equal(90_000, FfmpegCommandBuilder.FrameDurationTicks(0));
     }
 

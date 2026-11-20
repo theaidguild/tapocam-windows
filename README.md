@@ -1,12 +1,68 @@
-# TapoCam for Windows
+# TapoCam para Windows
 
-TapoCam is a Windows desktop application for local RTSP cameras. The repository currently contains a portable .NET 8 core library, a WPF shell, and xUnit tests for the core behavior.
+Veja, fotografe e grave câmeras TP-Link Tapo com RTSP na rede local. O TapoCam tem interface em português e funciona na área de notificação do Windows, mesmo com a janela principal fechada.
 
-## Build and test
+## Requisitos
+
+- Windows 10 21H2 ou mais recente, ou Windows 11, **x64**.
+- [Microsoft Edge WebView2 Runtime (Evergreen)](https://developer.microsoft.com/microsoft-edge/webview2/#download). Ele já vem no Windows 11; no Windows 10, instale-o se estiver ausente.
+- Câmera Tapo com suporte a RTSP acessível pelo PC na rede local.
+
+O pacote inclui o runtime do .NET, o go2rtc e o FFmpeg; não é necessário instalá-los separadamente.
+
+## Instalação
+
+1. Em [Releases](https://github.com/hpi-sail/tapocam-windows/releases), baixe `TapoCam-<versão>-win-x64.zip`. O arquivo `Source code (zip)` não é o aplicativo.
+2. Use **Extrair tudo…** para descompactar em uma pasta do seu usuário. Mantenha `tools\` e os outros arquivos junto do executável.
+3. Execute `TapoCam.App.exe` na pasta extraída. Para atualizar, saia pelo ícone da bandeja antes de abrir o executável da nova versão; as configurações ficam fora dessa pasta.
+
+## Primeiros passos
+
+1. No aplicativo Tapo do celular, abra as configurações da câmera e crie uma **Conta da Câmera** em **Configurações → Avançadas**. Esse usuário e essa senha são diferentes da conta TP-Link usada para entrar no app do celular.
+2. No TapoCam, abra **Ajustes → Câmeras**, clique em **+** e informe nome, IP local, usuário e senha da câmera. Comece com porta RTSP **554** e **25 quadros por segundo**; ajuste se sua câmera usar outros valores.
+3. Use **Testar conexão**, salve e volte à janela principal para conectar a câmera. Evite testar a conexão durante uma gravação importante: o teste abre uma sessão RTSP diretamente com a câmera.
+
+## Uso
+
+- **Visualização:** a grade mostra prévias SD sem som. Selecione uma câmera para ver em foco, alternar entre HD e SD, gravar ou tirar uma foto. Em **Ajustes → Geral**, escolha entre visualização com áudio (HLS, alguns segundos de atraso) e visualização sem áudio (MSE, atraso mínimo).
+- **Gravação e fotos:** use **Gravar** e o botão de foto na câmera em foco. Em **Gravações**, filtre por câmera, data e tipo de arquivo; abra a mídia ou localize-a no Explorador.
+- **Agenda:** em **Ajustes → Agenda**, escolha dias, hora inicial, duração, câmeras, qualidade e áudio. Para gravar no horário, o TapoCam precisa estar em execução e o PC precisa estar ligado e fora do modo de suspensão. Fechar a janela mantém o app na bandeja; **Sair do TapoCam** encerra o app.
+- **Retenção:** desativada por padrão. Se ativada, exclui permanentemente os vídeos antigos `tapo_*.mp4` na pasta de gravações, mas não as fotos nem as gravações em andamento.
+
+## Dados e privacidade
+
+| Dados | Local |
+|---|---|
+| Configurações e agenda | `%APPDATA%\TapoCam\settings.json` |
+| Senhas das câmeras | Gerenciador de Credenciais do Windows, entradas `TapoCam:<GUID>` do usuário |
+| Configuração gerada do go2rtc, logs e dados do WebView2 | `%LOCALAPPDATA%\TapoCam\` |
+| Gravações e fotos | `%USERPROFILE%\Videos\TapoCam\` por padrão; altere em **Ajustes → Geral** |
+
+O TapoCam reproduz e grava localmente. O relay usa apenas a interface de loopback (`127.0.0.1`, portas `11984`, `18554` e `18555`); não encaminhe essas portas no roteador. O RTSP padrão não é criptografado: use uma rede local confiável. O `go2rtc.yaml` gerado contém credenciais RTSP, mesmo que o `settings.json` não salve senhas. Trate também logs, fotos e vídeos como dados sensíveis; não os publique sem revisar e remover informações privadas.
+
+## Solução de problemas
+
+- **Não conecta à câmera:** confira o IP, a porta TCP 554 e a Conta da Câmera. Coloque PC e câmera em redes que permitam comunicação entre si; redes de convidados podem isolar os dispositivos. Verifique o firewall sem desativá-lo e não exponha a câmera à internet.
+- **Vídeo em branco ou aviso do WebView2:** instale ou repare o [WebView2 Runtime Evergreen](https://developer.microsoft.com/microsoft-edge/webview2/#download) e reinicie o TapoCam. Se o relay não iniciar, verifique `%LOCALAPPDATA%\TapoCam\go2rtc.log` e se outro processo já usa uma das portas locais.
+- **Aviso do SmartScreen:** confirme a origem do download na página oficial de Releases antes de tomar qualquer decisão. Não desative o SmartScreen nem ignore avisos de arquivos de origem desconhecida.
+- **Antivírus bloqueou `ffmpeg.exe`:** pode ser um falso positivo, mas verifique a origem do ZIP e peça a análise do arquivo ao fornecedor do antivírus ou à sua equipe de TI. Não desative a proteção nem crie uma exclusão ampla.
+
+## Compilar e testar
+
+No Windows, com o SDK do **.NET 8** e **PowerShell 7**:
 
 ```powershell
-dotnet test TapoCam.sln
-dotnet build src/TapoCam.App/TapoCam.App.csproj
+dotnet build TapoCam.sln --configuration Release
+dotnet test TapoCam.sln --configuration Release --no-build
+pwsh -File ./build.ps1
 ```
 
-The app project targets Windows; its WPF UI requires Windows to run. The core library and its tests are cross-platform.
+O script testa a solução e publica um pacote autocontido `dist\TapoCam-<versão>-win-x64.zip`, sem criar tags nem publicar releases. Por padrão usa a propriedade `Version` avaliada pelo MSBuild (`VersionPrefix` em `Directory.Build.props`); `-Version 1.0.0` altera tanto a versão publicada quanto o nome do ZIP. Os testes de Core também podem ser executados fora do Windows com `dotnet test tests/TapoCam.Core.Tests`; os de App precisam do Windows.
+
+### Distribuir um release
+
+O go2rtc v1.9.15 (MIT) e o FFmpeg 9.0.2 Essentials (GPLv3) são baixados de releases específicos e verificados com SHA-256 antes da extração. O pacote inclui as licenças e os avisos aplicáveis; consulte [os avisos de terceiros](packaging/licenses/THIRD-PARTY-NOTICES.txt).
+
+Um ZIP local sem a fonte correspondente do FFmpeg é apenas para uso privado. Antes de distribuir, obtenha do fornecedor o **código-fonte correspondente completo da compilação exata**, incluindo as bibliotecas vinculadas, patches aplicados e scripts necessários para compilar e instalar. O link para o repositório do FFmpeg por si só não basta. Publique a fonte ao lado do binário, com acesso equivalente e sem custo adicional.
+
+Para a automação de releases, configure `FFMPEG_SOURCE_URL` (URL HTTPS de um ZIP revisado com essa fonte) e `FFMPEG_SOURCE_SHA256` (SHA-256 do ZIP) em **Settings → Secrets and variables → Actions → Variables**. O fluxo valida o SHA-256 e anexa o ZIP da fonte ao mesmo Release nas tags `v<versão>`. Para preparar os dois arquivos localmente, passe `-FfmpegSourceArchive <arquivo.zip> -FfmpegSourceSha256 <sha256>` a `build.ps1`. Se mudar a compilação fixada do FFmpeg, atualize também a fonte revisada, os hashes e os avisos.

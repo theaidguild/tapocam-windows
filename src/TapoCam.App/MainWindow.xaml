@@ -2,18 +2,24 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="TapoCam" Height="640" Width="960" MinHeight="520" MinWidth="900"
-        Background="#111318" Foreground="#F3F4F6">
-    <Grid Margin="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <TextBlock Text="TapoCam" FontSize="24" FontWeight="SemiBold" />
-        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock Text="Nenhuma câmera" FontSize="22" FontWeight="SemiBold"
-                       HorizontalAlignment="Center" />
-            <TextBlock Text="Adicione uma câmera com IP, usuário e senha em Ajustes."
-                       Margin="0,10,0,0" Foreground="#A1A1AA" />
+        Background="#111318" Foreground="#F3F4F6" Language="pt-BR">
+    <DockPanel>
+        <ScrollViewer DockPanel.Dock="Bottom" MaxHeight="126" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="Banners" />
+        </ScrollViewer>
+        <StackPanel DockPanel.Dock="Bottom" Background="#191D25" Margin="0,1,0,0">
+            <WrapPanel x:Name="StatusBarPanel" Margin="10,4,10,0" />
+            <DockPanel Margin="8,2,8,5" LastChildFill="True">
+                <StackPanel x:Name="UtilityBar" Orientation="Horizontal" DockPanel.Dock="Right" />
+                <WrapPanel x:Name="Controls" />
+            </DockPanel>
         </StackPanel>
-    </Grid>
+        <DockPanel DockPanel.Dock="Left" Width="205" Background="#191D25">
+            <Button x:Name="AddCameraButton" Content="+ Adicionar câmera" Margin="8" Padding="8,5" DockPanel.Dock="Bottom" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="Sidebar" Margin="8" />
+            </ScrollViewer>
+        </DockPanel>
+        <Grid x:Name="VideoHost" Background="#08090B" />
+    </DockPanel>
 </Window>

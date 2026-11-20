@@ -4,6 +4,13 @@ namespace TapoCam.Core;
 
 public static class ScheduleCalculator
 {
+    public static DateTimeOffset? NextStart(
+        DateTimeOffset now,
+        TimeZoneInfo timeZone,
+        IEnumerable<ScheduleRule> rules,
+        IEnumerable<Guid> eligibleCameraIds) =>
+        NextScheduled(now, timeZone, rules, eligibleCameraIds)?.Start;
+
     public static IReadOnlyDictionary<Guid, ScheduleWindow> CurrentWindows(
         DateTimeOffset now,
         TimeZoneInfo timeZone,
