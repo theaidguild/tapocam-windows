@@ -80,3 +80,4 @@ jobs:
     with:
       version: ${{ needs.release-version.outputs.version }}
       skip_tests: true
+    secrets: inherit
