@@ -33,14 +33,14 @@ public partial class MainWindow : Window
         this.model = model;
         InitializeComponent();
         AddCameraButton.Click += async (_, _) => await AddCameraAsync();
-        AddUtility("▣", "Abrir a pasta de gravações", () => Ui.Run(this, () =>
+        AddUtility("Pasta", "Abrir a pasta de gravações", () => Ui.Run(this, () =>
         {
             Directory.CreateDirectory(model.Settings.RecordDir);
             WindowsServices.Open(model.Settings.RecordDir);
         }));
-        AddUtility("▶", "Gravações e fotos", OpenRecordings);
-        AddUtility("▦", "Agenda de gravações", () => ShowSettings(2));
-        AddUtility("⚙", "Ajustes (Ctrl+,)", OpenSettings);
+        AddUtility("Gravações", "Gravações e fotos", OpenRecordings);
+        AddUtility("Agenda", "Agenda de gravações", () => ShowSettings(2));
+        AddUtility("Ajustes", "Ajustes (Ctrl+,)", OpenSettings);
         PreviewKeyDown += Shortcuts;
         VideoHost.SizeChanged += (_, _) => ResizeTiles();
         IsVisibleChanged += (_, _) =>
@@ -116,6 +116,7 @@ public partial class MainWindow : Window
     private void AddUtility(string glyph, string title, Action action)
     {
         var button = Ui.Button(glyph, action, title);
+        button.Padding = new Thickness(10, 6, 10, 6);
         AutomationProperties.SetName(button, title);
         UtilityBar.Children.Add(button);
     }
@@ -158,6 +159,10 @@ public partial class MainWindow : Window
             var cameras = model.Settings.Cameras;
             var focused = cameras.FirstOrDefault(c => c.Id == model.SelectedCameraId);
             var state = cameras.ToDictionary(c => c.Id, c => model.GetCameraState(c.Id));
+            ViewTitle.Text = focused?.DisplayName ?? "Todas as câmeras";
+            ViewSubtitle.Text = focused is null
+                ? cameras.Count == 1 ? "1 câmera" : $"{cameras.Count} câmeras"
+                : "Visualização ao vivo";
             UpdateSidebar(cameras, state, focused);
             UpdateVideo(cameras, state, focused);
             UpdateControls(focused, focused is null ? null : state[focused.Id]);
@@ -175,13 +180,24 @@ public partial class MainWindow : Window
             sidebarKey = key;
             Sidebar.Children.Clear();
             sidebarRows.Clear();
-            allCameras = Ui.Button("Todas as câmeras", () => SelectCamera(null));
+            allCameras = Ui.Button("▦   Todas as câmeras", () => SelectCamera(null));
+            allCameras.Style = (Style)FindResource("NavigationButton");
+            allCameras.Padding = new Thickness(12, 10, 12, 10);
+            allCameras.Margin = new Thickness(0, 2, 0, 2);
+            AutomationProperties.SetName(allCameras, "Todas as câmeras");
             allCameras.HorizontalContentAlignment = HorizontalAlignment.Left;
             Sidebar.Children.Add(allCameras);
-            Sidebar.Children.Add(new TextBlock { Text = "Câmeras", Margin = new Thickness(4, 12, 0, 5), FontWeight = FontWeights.SemiBold });
+            Sidebar.Children.Add(new TextBlock
+            {
+                Text = "CÂMERAS", Margin = new Thickness(12, 22, 0, 7),
+                Foreground = Ui.Color("#91A1B5"), FontSize = 10, FontWeight = FontWeights.SemiBold
+            });
             foreach (var camera in cameras)
             {
                 var button = Ui.Button("", () => SelectCamera(camera.Id));
+                button.Style = (Style)FindResource("NavigationButton");
+                button.Padding = new Thickness(12, 10, 12, 10);
+                button.Margin = new Thickness(0, 2, 0, 2);
                 button.Opacity = camera.Enabled ? 1 : .5;
                 button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
                 var dot = Ui.Dot("Gray");
@@ -199,13 +215,15 @@ public partial class MainWindow : Window
                 sidebarRows.Add(camera.Id, (dot, recording, button));
             }
         }
+        allCameras!.Tag = focused is null ? "Selected" : null;
         allCameras!.FontWeight = focused is null ? FontWeights.Bold : FontWeights.Normal;
         foreach (var camera in cameras)
         {
             var state = states[camera.Id];
             var row = sidebarRows[camera.Id];
+            row.Button.Tag = focused?.Id == camera.Id ? "Selected" : null;
             row.Button.FontWeight = focused?.Id == camera.Id ? FontWeights.Bold : FontWeights.Normal;
-            row.Dot.Foreground = Ui.Color(state.Status.Color.ToString());
+            row.Dot.Foreground = Ui.StatusColor(state.Status.Color);
             row.Dot.ToolTip = state.Status.Text;
             row.Recording.Text = state.IsRecording ? "●" : state.HasRecordingRequest ? "○" : "";
             row.Recording.Foreground = state.IsRecording ? Brushes.Red : Brushes.DarkOrange;
@@ -243,9 +261,11 @@ public partial class MainWindow : Window
             if (cameras.Count == 0)
             {
                 var empty = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                empty.Children.Add(new TextBlock { Text = "◉", FontSize = 42, HorizontalAlignment = HorizontalAlignment.Center });
-                empty.Children.Add(new TextBlock { Text = "Nenhuma câmera", FontSize = 22, Margin = new Thickness(0, 6, 0, 12) });
+                empty.Children.Add(new TextBlock { Text = "◉", FontSize = 42, Foreground = Ui.Color("#78AFFF"), HorizontalAlignment = HorizontalAlignment.Center });
+                empty.Children.Add(new TextBlock { Text = "Nenhuma câmera", FontSize = 22, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 6), HorizontalAlignment = HorizontalAlignment.Center });
+                empty.Children.Add(new TextBlock { Text = "Adicione uma câmera para começar.", Foreground = Ui.Color("#A7B6C8"), Margin = new Thickness(0, 0, 0, 16), HorizontalAlignment = HorizontalAlignment.Center });
                 var add = Ui.Button("Adicionar câmera", () => _ = AddCameraAsync());
+                add.Style = (Style)FindResource("PrimaryButton");
                 add.IsDefault = true;
                 empty.Children.Add(add);
                 VideoHost.Children.Add(empty);
@@ -253,8 +273,12 @@ public partial class MainWindow : Window
             }
             if (focused is null)
             {
-                grid = new WrapPanel { Margin = new Thickness(4) };
-                VideoHost.Children.Add(new ScrollViewer { Content = grid, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
+                grid = new WrapPanel { Margin = new Thickness(14) };
+                VideoHost.Children.Add(new ScrollViewer
+                {
+                    Content = grid, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                });
                 foreach (var camera in cameras)
                     grid.Children.Add(CreateTile(camera, false));
                 ResizeTiles();
@@ -283,7 +307,7 @@ public partial class MainWindow : Window
     {
         if (grid is null)
             return;
-        var width = Math.Min(Math.Clamp(model.Settings.GridTileWidth, 200, 800), Math.Max(1, VideoHost.ActualWidth - 34));
+        var width = Math.Min(Math.Clamp(model.Settings.GridTileWidth, 200, 800), Math.Max(1, VideoHost.ActualWidth - 54));
         foreach (var tile in tiles.Values)
         {
             tile.Width = width;
@@ -312,6 +336,11 @@ public partial class MainWindow : Window
         Controls.Children.Clear();
         if (focused is null)
         {
+            Controls.Children.Add(new TextBlock
+            {
+                Text = "Tamanho da grade", Foreground = Ui.Color("#A7B6C8"),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0)
+            });
             var slider = new Slider
             {
                 Minimum = 200, Maximum = 800, TickFrequency = 40, IsSnapToTickEnabled = true, Width = 125,
@@ -340,7 +369,8 @@ public partial class MainWindow : Window
             var option = new RadioButton
             {
                 Content = quality.Label(), GroupName = "ViewQuality", IsChecked = model.Settings.EffectiveViewQuality == quality,
-                Margin = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "Qualidade da visualização"
+                Margin = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Foreground, ToolTip = "Qualidade da visualização"
             };
             option.Checked += (_, _) =>
             {
@@ -378,7 +408,9 @@ public partial class MainWindow : Window
             return;
         statusKey = key;
         StatusBarPanel.Children.Clear();
-        StatusBarPanel.Children.Add(Ui.Dot(status.Color.ToString()));
+        var statusDot = Ui.Dot(status.Color);
+        statusDot.Foreground = Ui.StatusColor(status.Color);
+        StatusBarPanel.Children.Add(statusDot);
         StatusBarPanel.Children.Add(Ui.Text(status.Text));
         if (count > 0) StatusBarPanel.Children.Add(Ui.Text($"  • {count} gravando", Brushes.Tomato));
         if (model.NextScheduleText is { Length: > 0 } next) StatusBarPanel.Children.Add(Ui.Text($"  • {next}"));

@@ -1,25 +1,111 @@
 ﻿<Window x:Class="TapoCam.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="TapoCam" Height="640" Width="960" MinHeight="520" MinWidth="900"
-        Background="#111318" Foreground="#F3F4F6" Language="pt-BR">
+        Title="TapoCam" Height="700" Width="1100" MinHeight="520" MinWidth="900"
+        Background="#0D1118" Foreground="#E8EDF5" FontFamily="Segoe UI" FontSize="13"
+        Language="pt-BR" UseLayoutRounding="True">
+    <Window.Resources>
+        <Style TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="#252F3D"/>
+            <Setter Property="Foreground" Value="#E8EDF5"/>
+            <Setter Property="BorderBrush" Value="#354355"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7" SnapsToDevicePixels="True">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Surface" Property="BorderBrush" Value="#7086A1"/>
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.88"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Surface" Property="BorderBrush" Value="#85B5FF"/>
+                                <Setter TargetName="Surface" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.42"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="NavigationButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Style.Triggers>
+                <Trigger Property="Tag" Value="Selected">
+                    <Setter Property="Background" Value="#253B56"/>
+                    <Setter Property="BorderBrush" Value="#365F8E"/>
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="PrimaryButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#3278DA"/>
+            <Setter Property="BorderBrush" Value="#448CEB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Window.Resources>
     <DockPanel>
         <ScrollViewer DockPanel.Dock="Bottom" MaxHeight="126" VerticalScrollBarVisibility="Auto">
             <StackPanel x:Name="Banners" />
         </ScrollViewer>
-        <StackPanel DockPanel.Dock="Bottom" Background="#191D25" Margin="0,1,0,0">
-            <WrapPanel x:Name="StatusBarPanel" Margin="10,4,10,0" />
-            <DockPanel Margin="8,2,8,5" LastChildFill="True">
-                <StackPanel x:Name="UtilityBar" Orientation="Horizontal" DockPanel.Dock="Right" />
-                <WrapPanel x:Name="Controls" />
+        <Border DockPanel.Dock="Bottom" Background="#151C26" BorderBrush="#293342" BorderThickness="0,1,0,0" Padding="18,9">
+            <StackPanel>
+                <DockPanel LastChildFill="True">
+                    <StackPanel x:Name="UtilityBar" Orientation="Horizontal" DockPanel.Dock="Right" />
+                    <WrapPanel x:Name="StatusBarPanel" VerticalAlignment="Center" />
+                </DockPanel>
+                <WrapPanel x:Name="Controls" Margin="0,5,0,0" />
+            </StackPanel>
+        </Border>
+        <Border DockPanel.Dock="Left" Width="230" Background="#151C26" BorderBrush="#293342" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <Button x:Name="AddCameraButton" Content="+  Adicionar câmera" Style="{StaticResource PrimaryButton}"
+                        Margin="14,10,14,16" Padding="12,10" DockPanel.Dock="Bottom" />
+                <StackPanel DockPanel.Dock="Top" Margin="18,22,18,22">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Background="#245DAA" CornerRadius="8" Width="34" Height="34">
+                            <TextBlock Text="&#xE714;" FontFamily="Segoe MDL2 Assets" FontSize="17"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                        </Border>
+                        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="TapoCam" FontWeight="SemiBold" FontSize="17" Foreground="White"/>
+                            <TextBlock Text="SUAS CÂMERAS" FontSize="10" Foreground="#9DADC1"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="Sidebar" Margin="12,0" />
+                </ScrollViewer>
             </DockPanel>
-        </StackPanel>
-        <DockPanel DockPanel.Dock="Left" Width="205" Background="#191D25">
-            <Button x:Name="AddCameraButton" Content="+ Adicionar câmera" Margin="8" Padding="8,5" DockPanel.Dock="Bottom" />
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="Sidebar" Margin="8" />
-            </ScrollViewer>
+        </Border>
+        <DockPanel Background="#0D1118">
+            <Border DockPanel.Dock="Top" BorderBrush="#202A37" BorderThickness="0,0,0,1" Padding="22,17">
+                <StackPanel>
+                    <TextBlock x:Name="ViewTitle" Text="Todas as câmeras" FontSize="21" FontWeight="SemiBold" Foreground="#F6F8FC" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="ViewSubtitle" Text="Visualização ao vivo" Foreground="#9DADC1" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Border>
+            <Grid x:Name="VideoHost" Background="#0D1118" />
         </DockPanel>
-        <Grid x:Name="VideoHost" Background="#08090B" />
     </DockPanel>
 </Window>

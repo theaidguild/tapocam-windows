@@ -35,6 +35,16 @@ internal static class Ui
 
     public static Brush Color(string color) => (Brush?)new BrushConverter().ConvertFromInvariantString(color) ?? Brushes.Gray;
 
+    public static Brush StatusColor(string color) => Color(color switch
+    {
+        "Green" => "#54D69A",
+        "Red" => "#FF737D",
+        "Orange" => "#FFBE6A",
+        "Gray" => "#A0AFC1",
+        "DimGray" => "#8191A5",
+        _ => color
+    });
+
     public static TextBlock Dot(string color) => new()
     {
         Text = "●", Foreground = Color(color), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0)

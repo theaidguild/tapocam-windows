@@ -29,10 +29,10 @@ internal sealed class CameraTile : Border
     public CameraTile(bool focused, Action focus, Action connectAction, Action photoAction, Action recordAction)
     {
         this.focused = focused;
-        Margin = new Thickness(4);
+        Margin = new Thickness(focused ? 14 : 6);
         BorderThickness = new Thickness(1);
-        BorderBrush = Ui.Color("#333741");
-        CornerRadius = new CornerRadius(6);
+        BorderBrush = Ui.Color("#344354");
+        CornerRadius = new CornerRadius(10);
         Background = Brushes.Black;
         ForegroundForText();
 
@@ -40,7 +40,7 @@ internal sealed class CameraTile : Border
         Child = layers;
         layers.Children.Add(video);
         SizeChanged += (_, _) => layers.Clip = new RectangleGeometry(
-            new Rect(0, 0, layers.ActualWidth, layers.ActualHeight), 5, 5);
+            new Rect(0, 0, layers.ActualWidth, layers.ActualHeight), 9, 9);
 
         placeholder = Ui.Text("", Brushes.White);
         placeholder.TextAlignment = TextAlignment.Center;
@@ -67,7 +67,7 @@ internal sealed class CameraTile : Border
         var namePanel = new StackPanel { Orientation = Orientation.Horizontal };
         namePanel.Children.Add(dot);
         namePanel.Children.Add(title);
-        badges.Children.Add(Pill(namePanel, Ui.Color("#DD181A20")));
+        badges.Children.Add(Pill(namePanel, Ui.Color("#E61A2430")));
         recordingBadge = Pill(recording, Brushes.DarkRed);
         badges.Children.Add(recordingBadge);
         layers.Children.Add(badges);
@@ -104,7 +104,7 @@ internal sealed class CameraTile : Border
 
     private void UpdateHover()
     {
-        badges.Visibility = focused || IsMouseOver ? Visibility.Visible : Visibility.Collapsed;
+        badges.Visibility = Visibility.Visible;
         actions.Visibility = !focused && IsMouseOver ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -112,7 +112,7 @@ internal sealed class CameraTile : Border
     {
         var active = state.IsActive;
         title.Text = camera.DisplayName;
-        dot.Foreground = Ui.Color(state.Status.Color.ToString());
+        dot.Foreground = Ui.StatusColor(state.Status.Color);
         recording.Text = $"● REC {state.Elapsed}";
         recordingBadge.Visibility = state.IsRecording ? Visibility.Visible : Visibility.Collapsed;
         photo.IsEnabled = state.IsConnected;
