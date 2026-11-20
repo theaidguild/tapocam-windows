@@ -1,26 +1,14 @@
-TapoCam Windows portable package — third-party notices
+TapoCam for Windows — third-party notices
 
 go2rtc v1.9.15 (MIT)
   Copyright (c) 2022 Alexey Khit. See go2rtc-MIT.txt.
   https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.15
 
-FFmpeg 9.0.2 essentials Windows x64, static build by Gyan (GPL v3)
-  TapoCam runs the unmodified ffmpeg.exe as a separate program. See
-  FFmpeg-GPL-3.0.txt and FFmpeg-upstream-README.txt, from the original build.
-  Binary: https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2
-  FFmpeg revision: https://github.com/FFmpeg/FFmpeg/tree/946fcce07b6dcd0331c8cc609192aeff5e1924f8
-
-  For official releases, get the complete Corresponding Source at no charge
-  from the SAME release page as the TapoCam binary ZIP. The companion file is
-  named ffmpeg-9.0.2-essentials-corresponding-source.zip.
-  https://github.com/hpi-sail/tapocam-windows/releases
-
-  The FFmpeg revision link by itself is not the complete Corresponding Source
-  of this static build. Redistributors must preserve notices and satisfy the
-  GPL, including how they provide matching source. For network distribution
-  under GPLv3 section 6(d), provide equivalent access to the matching complete
-  source at no additional charge. Do not distribute a private-use build
-  without meeting those obligations.
+FFmpeg (not included)
+  TapoCam does not ship FFmpeg. The installer can install it separately with
+  winget (package Gyan.FFmpeg.Essentials, GPL v3, https://www.gyan.dev/ffmpeg/builds/),
+  downloaded directly from its publisher. TapoCam runs ffmpeg.exe as a
+  separate program.
 
 H.NotifyIcon, H.NotifyIcon.Wpf, H.GeneratedIcons.System.Drawing (MIT)
   Copyright (c) 2020 havendv. See H.NotifyIcon-MIT.txt.

@@ -58,12 +58,12 @@ internal static class WindowsServices
         finally { File.Delete(temporary); }
     }
 
-    public static string? FindTool(string name)
+    public static string? FindTool(string name) =>
+        FindTool(name, ToolSearchDirectories(Environment.GetEnvironmentVariable("PATH")));
+
+    public static string? FindTool(string name, IEnumerable<string> directories)
     {
-        var bundled = Path.Combine(AppContext.BaseDirectory, "tools", name);
-        if (File.Exists(bundled))
-            return bundled;
-        foreach (var entry in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
+        foreach (var entry in directories)
         {
             var directory = entry.Trim().Trim('"');
             if (!Path.IsPathFullyQualified(directory))
@@ -75,9 +75,17 @@ internal static class WindowsServices
         return null;
     }
 
+    // winget's Links folders are checked explicitly because a process started before or
+    // during a winget install (e.g. from the installer) still has the old PATH.
+    public static IEnumerable<string> ToolSearchDirectories(string? path) =>
+        new[] { Path.Combine(AppContext.BaseDirectory, "tools") }
+            .Concat((path ?? "").Split(Path.PathSeparator))
+            .Append(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WinGet", "Links"))
+            .Append(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WinGet", "Links"));
+
     public static string RequireTool(string name) =>
         FindTool(name) ?? throw new FileNotFoundException(
-            $"Não foi possível encontrar {name}. Extraia todo o arquivo ZIP, incluindo a pasta tools.");
+            $"Não foi possível encontrar {name}. Reinstale o TapoCam ou, para o FFmpeg, execute: winget install Gyan.FFmpeg.Essentials");
 
     public static bool LaunchAtSignIn
     {

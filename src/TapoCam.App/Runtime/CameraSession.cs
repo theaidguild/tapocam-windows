@@ -70,7 +70,7 @@ internal sealed class CameraSession(CameraHealthMonitor health, Action<string, s
 
         if (ffmpegPath is null || !File.Exists(ffmpegPath))
         {
-            FailPermanently(camera, "ffmpeg não encontrado.");
+            FailPermanently(camera, "ffmpeg não encontrado. Instale com: winget install Gyan.FFmpeg.Essentials");
             return;
         }
 

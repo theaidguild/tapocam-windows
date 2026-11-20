@@ -33,7 +33,7 @@ internal sealed class CameraMedia(
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { }
 
         if (ffmpeg is null || !File.Exists(ffmpeg))
-            return "ffmpeg não encontrado.";
+            return "ffmpeg não encontrado. Instale com: winget install Gyan.FFmpeg.Essentials";
         var (code, output) = await ProcessSupport.RunShortAsync(startProcess, ffmpeg,
             FfmpegCommandBuilder.Snapshot(RelayController.LocalRtsp(stream), path),
             TimeSpan.FromSeconds(15), cancellationToken);
@@ -54,7 +54,7 @@ internal sealed class CameraMedia(
         if (!result.Reachable)
             return result.Message ?? "Sem acesso à câmera.";
         if (ffmpeg is null || !File.Exists(ffmpeg))
-            return "A câmera respondeu, mas o vídeo falhou: ffmpeg não encontrado.";
+            return "A câmera respondeu, mas o vídeo falhou: ffmpeg não encontrado. Instale com: winget install Gyan.FFmpeg.Essentials";
         try
         {
             var (code, output) = await ProcessSupport.RunShortAsync(startProcess, ffmpeg,

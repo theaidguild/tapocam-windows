@@ -1,9 +1,7 @@
 #requires -Version 7.0
 [CmdletBinding()]
 param(
-    [string] $Version,
-    [string] $FfmpegSourceArchive,
-    [string] $FfmpegSourceSha256
+    [string] $Version
 )
 
 $ErrorActionPreference = 'Stop'
@@ -69,21 +67,15 @@ function Copy-PackageNotices([string] $AssetsFile, [string] $DepsFile, [string] 
     }
 }
 
-if ($FfmpegSourceArchive -or $FfmpegSourceSha256) {
-    if (-not $FfmpegSourceArchive -or $FfmpegSourceSha256 -notmatch '\A[0-9a-f]{64}\z') {
-        throw 'Supply both -FfmpegSourceArchive (ZIP) and -FfmpegSourceSha256 (64 hex digits).'
+function Find-InnoSetupCompiler {
+    $command = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+    foreach ($root in @(${env:ProgramFiles(x86)}, $env:ProgramFiles, (Join-Path $env:LOCALAPPDATA 'Programs'))) {
+        if (-not $root) { continue }
+        $candidate = Join-Path $root 'Inno Setup 6/ISCC.exe'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
     }
-    $FfmpegSourceArchive = (Get-Item -LiteralPath $FfmpegSourceArchive).FullName
-    if ([IO.Path]::GetExtension($FfmpegSourceArchive) -ne '.zip') {
-        throw 'The FFmpeg corresponding-source archive must be a ZIP.'
-    }
-    Assert-Sha256 $FfmpegSourceArchive $FfmpegSourceSha256
-    $sourceZip = [IO.Compression.ZipFile]::OpenRead($FfmpegSourceArchive)
-    try {
-        if ($sourceZip.Entries.Count -eq 0) { throw 'The FFmpeg corresponding-source ZIP is empty.' }
-    } finally {
-        $sourceZip.Dispose()
-    }
+    throw 'Inno Setup 6 was not found. Install it with: winget install JRSoftware.InnoSetup'
 }
 
 $project = Join-Path $PSScriptRoot 'src/TapoCam.App/TapoCam.App.csproj'
@@ -96,8 +88,11 @@ try {
     if ($Version -cnotmatch '\A(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?\z') {
         throw "Invalid package version '$Version'. Use X.Y.Z or X.Y.Z-prerelease (without 'v')."
     }
+    $iscc = Find-InnoSetupCompiler
 
+    Write-Host '==> Running tests'
     Invoke-Dotnet test (Join-Path $PSScriptRoot 'TapoCam.sln') --configuration Release
+    Write-Host '==> Publishing the app'
     $publish = Join-Path $stage 'publish'
     Invoke-Dotnet publish $project --configuration Release --runtime win-x64 --self-contained true `
         '-p:PublishSingleFile=false' "-p:Version=$Version" --output $publish
@@ -109,18 +104,12 @@ try {
     $licenses = Join-Path $publish 'licenses'
     New-Item -Path $tools, $licenses -ItemType Directory -Force | Out-Null
     $relay = Join-Path $stage 'go2rtc.zip'
-    $ffmpeg = Join-Path $stage 'ffmpeg.zip'
-    $ffmpegDir = 'ffmpeg-9.0.2-essentials_build'
 
-    # GitHub release asset digests, independently checked against the downloaded ZIPs.
+    Write-Host '==> Downloading go2rtc'
+    # GitHub release asset digest, independently checked against the downloaded ZIP.
     Get-VerifiedArchive 'https://github.com/AlexxIT/go2rtc/releases/download/v1.9.15/go2rtc_win64.zip' $relay `
         '5b448fc90f15c925406d8da0984301985e385050222c1c2bbdf0a76fe4b1e9cb'
-    Get-VerifiedArchive "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/$ffmpegDir.zip" $ffmpeg `
-        '60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba'
     Copy-ZipEntry $relay 'go2rtc.exe' (Join-Path $tools 'go2rtc.exe')
-    Copy-ZipEntry $ffmpeg "$ffmpegDir/bin/ffmpeg.exe" (Join-Path $tools 'ffmpeg.exe')
-    Copy-ZipEntry $ffmpeg "$ffmpegDir/LICENSE" (Join-Path $licenses 'FFmpeg-GPL-3.0.txt')
-    Copy-ZipEntry $ffmpeg "$ffmpegDir/README.txt" (Join-Path $licenses 'FFmpeg-upstream-README.txt')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LICENSE') -Destination $licenses
     Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'packaging/licenses') -File | Copy-Item -Destination $licenses
     $assetsFile = (Invoke-Dotnet msbuild $project '-nologo' '-getProperty:ProjectAssetsFile' `
@@ -130,16 +119,22 @@ try {
     $dist = Join-Path $PSScriptRoot 'dist'
     $zipName = "TapoCam-$Version-win-x64.zip"
     $stagedZip = Join-Path $stage $zipName
+    Write-Host '==> Creating portable ZIP'
     [IO.Compression.ZipFile]::CreateFromDirectory($publish, $stagedZip)
     New-Item -Path $dist -ItemType Directory -Force | Out-Null
-    if ($FfmpegSourceArchive) {
-        Copy-Item -LiteralPath $FfmpegSourceArchive -Destination (Join-Path $dist 'ffmpeg-9.0.2-essentials-corresponding-source.zip')
-    } else {
-        Write-Warning 'Private-use build only: do not redistribute without the matching FFmpeg Corresponding Source.'
-    }
     $destination = Join-Path $dist $zipName
     Move-Item -LiteralPath $stagedZip -Destination $destination -Force
     Write-Host "Created $destination"
+
+    Write-Host '==> Compiling installer'
+    $installerOutput = Join-Path $stage 'installer'
+    & $iscc '/Q' "/DAppVersion=$Version" "/DNumericVersion=$($Version.Split('-')[0])" `
+        "/DPublishDir=$publish" "/DOutputDir=$installerOutput" (Join-Path $PSScriptRoot 'packaging/installer/TapoCam.iss')
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed (exit code $LASTEXITCODE)." }
+    $setupName = "TapoCam-$Version-win-x64-setup.exe"
+    $setup = Join-Path $dist $setupName
+    Move-Item -LiteralPath (Join-Path $installerOutput $setupName) -Destination $setup -Force
+    Write-Host "Created $setup"
 } finally {
     if (Test-Path -LiteralPath $stage) {
         Remove-Item -LiteralPath $stage -Recurse -Force
