@@ -5,7 +5,7 @@ Veja, fotografe e grave câmeras TP-Link Tapo com RTSP na rede local. O TapoCam 
 ## Requisitos
 
 - Windows 10 21H2 ou mais recente, ou Windows 11, **x64**.
-- [Microsoft Edge WebView2 Runtime (Evergreen)](https://developer.microsoft.com/microsoft-edge/webview2/#download). Ele já vem no Windows 11; no Windows 10, instale-o se estiver ausente.
+- [Microsoft Edge WebView2 Runtime (Evergreen)](https://developer.microsoft.com/microsoft-edge/webview2/#download). O instalador o baixa e instala se estiver ausente.
 - Câmera Tapo com suporte a RTSP acessível pelo PC na rede local.
 
 O instalador inclui o runtime do .NET e o go2rtc e instala o [FFmpeg](https://www.gyan.dev/ffmpeg/builds/) com o `winget` (que já vem no Windows 10 e 11), se ele ainda não estiver instalado.
@@ -13,10 +13,10 @@ O instalador inclui o runtime do .NET e o go2rtc e instala o [FFmpeg](https://ww
 ## Instalação
 
 1. Em [Releases](https://github.com/hpi-sail/tapocam-windows/releases), baixe `TapoCam-<versão>-win-x64-setup.exe`. O arquivo `Source code (zip)` não é o aplicativo.
-2. Execute o instalador. Ele instala o TapoCam só para o seu usuário, sem pedir permissão de administrador. Se o FFmpeg não for encontrado, a opção **Instalar o FFmpeg com o winget** vem marcada e uma janela mostra o progresso do `winget`.
+2. Execute o instalador. Ele instala o TapoCam só para o seu usuário, sem pedir permissão de administrador. Se o WebView2 estiver ausente, o instalador precisa de internet para baixá-lo da Microsoft. Se o FFmpeg não for encontrado, a opção **Instalar o FFmpeg com o winget** vem marcada e uma janela mostra o progresso do `winget`.
 3. Abra o TapoCam pelo menu Iniciar. Para atualizar, execute o instalador da nova versão; as configurações são mantidas.
 
-Também há um ZIP portátil, `TapoCam-<versão>-win-x64.zip`, que não inclui o FFmpeg: instale-o com `winget install Gyan.FFmpeg.Essentials` antes de usar.
+Também há um ZIP portátil, `TapoCam-<versão>-win-x64.zip`, que não instala o WebView2 nem inclui o FFmpeg: instale o WebView2 se estiver ausente e execute `winget install Gyan.FFmpeg.Essentials` antes de usar.
 
 ## Primeiros passos
 

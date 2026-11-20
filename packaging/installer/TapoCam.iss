@@ -50,6 +50,67 @@ Filename: "{app}\TapoCam.App.exe"; Description: "{cm:LaunchProgram,TapoCam}"; Fl
 const
   WingetArgs = 'install --id Gyan.FFmpeg.Essentials --exact --source winget ' +
     '--accept-package-agreements --accept-source-agreements --disable-interactivity';
+  WebView2Key = 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  WebView2BootstrapperUrl = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703';
+  WebView2DownloadPage = 'https://developer.microsoft.com/microsoft-edge/webview2/';
+
+function WebView2InRegistry(RootKey: Integer): Boolean;
+var
+  Version: String;
+begin
+  Result := RegQueryStringValue(RootKey, WebView2Key, 'pv', Version) and
+    (Version <> '') and (Version <> '0.0.0.0');
+end;
+
+function WebView2Found: Boolean;
+begin
+  Result := WebView2InRegistry(HKLM32) or WebView2InRegistry(HKCU);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Code: Integer;
+begin
+  Result := '';
+  if WebView2Found then
+  begin
+    Log('WebView2 Runtime is already installed.');
+    Exit;
+  end;
+
+  WizardForm.PreparingLabel.Caption := 'Baixando e instalando o Microsoft Edge WebView2 Runtime...';
+  WizardForm.PreparingLabel.Update;
+  Log('WebView2 Runtime not found; downloading Microsoft bootstrapper.');
+  try
+    DownloadTemporaryFile(WebView2BootstrapperUrl, 'MicrosoftEdgeWebview2Setup.exe', '', nil);
+  except
+    Log('WebView2 bootstrapper download failed: ' + GetExceptionMessage);
+    Result := 'Não foi possível baixar o WebView2 Runtime. Verifique a conexão com a internet ' +
+      'ou instale-o manualmente e execute o instalador novamente:' + #13#10 + WebView2DownloadPage;
+    Exit;
+  end;
+
+  if not Exec(ExpandConstant('{tmp}\MicrosoftEdgeWebview2Setup.exe'),
+    '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, Code) then
+  begin
+    Log(Format('Could not start WebView2 bootstrapper: %s (%d)', [SysErrorMessage(Code), Code]));
+    Result := 'Não foi possível iniciar o instalador do WebView2 Runtime. ' +
+      'Instale-o manualmente e execute o instalador novamente:' + #13#10 + WebView2DownloadPage;
+    Exit;
+  end;
+  Log(Format('WebView2 bootstrapper exit code: %d', [Code]));
+  if not WebView2Found then
+  begin
+    Log('WebView2 Runtime was not detected after installation.');
+    if Code = 0 then
+      Result := 'O instalador do WebView2 foi executado, mas o runtime não foi encontrado.'
+    else
+      Result := Format('Não foi possível instalar o WebView2 Runtime (código %d).', [Code]);
+    Result := Result + #13#10 + 'Instale-o manualmente e execute o instalador novamente:' + #13#10 + WebView2DownloadPage;
+  end
+  else
+    Log('WebView2 Runtime detected after installation.');
+end;
 
 function FfmpegInPackageRoot(const PackagesDirectory: String): Boolean;
 var
