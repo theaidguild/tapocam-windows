@@ -21,4 +21,22 @@ public sealed class ToolLookupTests
         }
         finally { folder.Delete(recursive: true); }
     }
+
+    [Fact]
+    public void FindsWingetPortableToolInsideVersionedPackageDirectory()
+    {
+        var folder = Directory.CreateTempSubdirectory("TapoCam-tests-");
+        try
+        {
+            var package = Path.Combine(folder.FullName, "Gyan.FFmpeg.Essentials_TestSource");
+            var bin = Path.Combine(package, "ffmpeg-test-essentials_build", "bin");
+            Directory.CreateDirectory(bin);
+            var tool = Path.Combine(bin, "ffmpeg.exe");
+            File.WriteAllText(tool, "");
+
+            Assert.Equal(tool, WindowsServices.FindWingetPackageTool("ffmpeg.exe", folder.FullName));
+            Assert.Null(WindowsServices.FindWingetPackageTool("go2rtc.exe", folder.FullName));
+        }
+        finally { folder.Delete(recursive: true); }
+    }
 }

@@ -58,8 +58,13 @@ internal static class WindowsServices
         finally { File.Delete(temporary); }
     }
 
-    public static string? FindTool(string name) =>
-        FindTool(name, ToolSearchDirectories(Environment.GetEnvironmentVariable("PATH")));
+    public static string? FindTool(string name)
+    {
+        var tool = FindTool(name, ToolSearchDirectories(Environment.GetEnvironmentVariable("PATH")));
+        return tool ?? FindWingetPackageTool(name,
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Microsoft", "WinGet", "Packages"));
+    }
 
     public static string? FindTool(string name, IEnumerable<string> directories)
     {
@@ -69,6 +74,22 @@ internal static class WindowsServices
             if (!Path.IsPathFullyQualified(directory))
                 continue;
             var candidate = Path.Combine(directory, name);
+            if (File.Exists(candidate))
+                return candidate;
+        }
+        return null;
+    }
+
+    public static string? FindWingetPackageTool(string name, string packagesDirectory)
+    {
+        if (!string.Equals(name, "ffmpeg.exe", StringComparison.OrdinalIgnoreCase))
+            return null;
+        if (!Directory.Exists(packagesDirectory))
+            return null;
+        foreach (var package in Directory.EnumerateDirectories(packagesDirectory, "Gyan.FFmpeg.Essentials_*"))
+        foreach (var version in Directory.EnumerateDirectories(package))
+        {
+            var candidate = Path.Combine(version, "bin", name);
             if (File.Exists(candidate))
                 return candidate;
         }

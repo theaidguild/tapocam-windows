@@ -51,11 +51,52 @@ const
   WingetArgs = 'install --id Gyan.FFmpeg.Essentials --exact --source winget ' +
     '--accept-package-agreements --accept-source-agreements --disable-interactivity';
 
+function FfmpegInPackageRoot(const PackagesDirectory: String): Boolean;
+var
+  PackageRec, VersionRec: TFindRec;
+  PackagePath, VersionPath: String;
+begin
+  Result := False;
+  if not DirExists(PackagesDirectory) then
+    Exit;
+  if FindFirst(AddBackslash(PackagesDirectory) + 'Gyan.FFmpeg.Essentials_*', PackageRec) then
+  try
+    repeat
+      if ((PackageRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and
+         (PackageRec.Name <> '.') and (PackageRec.Name <> '..') then
+      begin
+        PackagePath := AddBackslash(PackagesDirectory) + PackageRec.Name;
+        if FindFirst(AddBackslash(PackagePath) + '*', VersionRec) then
+        try
+          repeat
+            if ((VersionRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and
+               (VersionRec.Name <> '.') and (VersionRec.Name <> '..') then
+            begin
+              VersionPath := AddBackslash(PackagePath) + VersionRec.Name;
+              if FileExists(AddBackslash(VersionPath) + 'bin\ffmpeg.exe') then
+              begin
+                Result := True;
+                Exit;
+              end;
+            end;
+          until not FindNext(VersionRec);
+        finally
+          FindClose(VersionRec);
+        end;
+      end;
+    until not FindNext(PackageRec);
+  finally
+    FindClose(PackageRec);
+  end;
+end;
+
 function FfmpegFound: Boolean;
 begin
   Result := (FileSearch('ffmpeg.exe', GetEnv('PATH')) <> '') or
     FileExists(ExpandConstant('{localappdata}\Microsoft\WinGet\Links\ffmpeg.exe')) or
-    FileExists(ExpandConstant('{commonpf64}\WinGet\Links\ffmpeg.exe'));
+    FileExists(ExpandConstant('{commonpf64}\WinGet\Links\ffmpeg.exe')) or
+    FfmpegInPackageRoot(ExpandConstant('{localappdata}\Microsoft\WinGet\Packages')) or
+    FfmpegInPackageRoot(ExpandConstant('{commonpf64}\WinGet\Packages'));
 end;
 
 procedure InstallFfmpeg;
