@@ -46,33 +46,63 @@ internal sealed class CameraMedia(
         return LastLine(output);
     }
 
-    public async Task<string> TestConnectionAsync(Camera camera, string secret, CancellationToken cancellationToken)
+    public async Task<ConnectionTestReport> TestConnectionAsync(
+        Camera camera, string secret, CancellationToken cancellationToken)
     {
+        var steps = new List<ConnectionTestStep>();
+        ConnectionTestReport Fail(string summary, string? output = null) => new(summary, false, steps, output);
+
+        var timer = Stopwatch.StartNew();
         if (!camera.IsConfigured(secret) || camera.RtspEndpoint(secret) is not { } endpoint)
-            return camera.UseCustomRtspUrl ? Camera.InvalidRtspUrlMessage : "Preencha o IP, o usuário e a senha.";
+        {
+            var message = camera.UseCustomRtspUrl ? Camera.InvalidRtspUrlMessage : "Preencha o IP, o usuário e a senha.";
+            steps.Add(new("Validação", false, timer.Elapsed, message));
+            return Fail(message);
+        }
+        steps.Add(new("Validação", true, timer.Elapsed,
+            camera.UseCustomRtspUrl ? "URL RTSP válida" : "Dados da câmera preenchidos"));
+
+        timer.Restart();
         var result = await probe.ProbeAsync(endpoint.Host, endpoint.Port, cancellationToken);
+        var target = $"{endpoint.Host}:{endpoint.Port}";
         if (!result.Reachable)
-            return result.Message ?? "Sem acesso à câmera.";
+        {
+            var message = result.Message ?? "Sem acesso à câmera.";
+            steps.Add(new("Conexão TCP", false, timer.Elapsed, $"{target} — {message}"));
+            return Fail(message);
+        }
+        steps.Add(new("Conexão TCP", true, timer.Elapsed, $"{target} aceitou a conexão"));
+
         if (ffmpeg is null || !File.Exists(ffmpeg))
-            return "A câmera respondeu, mas o vídeo falhou: ffmpeg não encontrado. Instale com: winget install Gyan.FFmpeg.Essentials";
+        {
+            const string missing = "ffmpeg não encontrado. Instale com: winget install Gyan.FFmpeg.Essentials";
+            steps.Add(new("Vídeo (ffmpeg)", false, TimeSpan.Zero, missing));
+            return Fail($"A câmera respondeu, mas o vídeo falhou: {missing}");
+        }
+        timer.Restart();
         try
         {
             var (code, output) = await ProcessSupport.RunShortAsync(startProcess, ffmpeg,
                 FfmpegCommandBuilder.ConnectionTest(camera.RtspUrl(StreamQuality.Sd, secret)),
-                TimeSpan.FromSeconds(15), cancellationToken);
+                TimeSpan.FromSeconds(15), cancellationToken, hideRtspUrls: true);
+            var exit = code == -1 ? "tempo limite de 15 s excedido" : $"código de saída {code}";
+            steps.Add(new("Vídeo (ffmpeg)", code == 0, timer.Elapsed,
+                code == 0 ? $"primeiro quadro recebido ({exit})" : exit));
             if (code == 0)
-                return "Conexão OK: a câmera enviou vídeo.";
+                return new("Conexão OK: a câmera enviou vídeo.", true, steps, output);
             if (output.Contains("401", StringComparison.OrdinalIgnoreCase) ||
                 output.Contains("unauthorized", StringComparison.OrdinalIgnoreCase))
-                return camera.UseCustomRtspUrl
+                return Fail(camera.UseCustomRtspUrl
                     ? "Usuário ou senha incorretos. Confira as credenciais na URL RTSP."
-                    : "Usuário ou senha incorretos. Use a Conta da Câmera criada no app Tapo.";
-            return $"A câmera respondeu, mas o vídeo falhou: {LastLine(output)}";
+                    : "Usuário ou senha incorretos. Use a Conta da Câmera criada no app Tapo.", output);
+            return Fail($"A câmera respondeu, mas o vídeo falhou: {LastLine(output)}", output);
         }
         catch (Exception ex) when (CameraSession.IsFileError(ex) ||
                                    ex is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            return $"A câmera respondeu, mas o vídeo falhou: {CredentialMasker.Mask(ex.Message)}";
+            var message = CredentialMasker.MaskDiagnostic(ex.Message);
+            steps.Add(new("Vídeo (ffmpeg)", false, timer.Elapsed, message));
+            return Fail($"A câmera respondeu, mas o vídeo falhou: {message}");
         }
     }
 

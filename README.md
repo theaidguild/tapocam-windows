@@ -22,7 +22,7 @@ Também há um ZIP portátil, `TapoCam-<versão>-win-x64.zip`, que não instala 
 
 1. No aplicativo Tapo do celular, abra as configurações da câmera e crie uma **Conta da Câmera** em **Configurações → Avançadas**. Esse usuário e essa senha são diferentes da conta TP-Link usada para entrar no app do celular.
 2. No TapoCam, abra **Ajustes → Câmeras**, clique em **+** e informe nome, IP local, usuário e senha da câmera. Comece com porta RTSP **554** e **25 quadros por segundo**; ajuste se sua câmera usar outros valores.
-3. Use **Testar conexão**, salve e volte à janela principal para conectar a câmera. Evite testar a conexão durante uma gravação importante: o teste abre uma sessão RTSP diretamente com a câmera.
+3. Use **Testar conexão**, salve e volte à janela principal para conectar a câmera. Em **Detalhes do diagnóstico**, consulte ou copie as etapas, os tempos e a saída do FFmpeg; URLs RTSP são ocultadas nessa saída. Evite testar a conexão durante uma gravação importante: o teste abre uma sessão RTSP diretamente com a câmera.
 
 Para câmeras de outras marcas, como Intelbras/Mibo, em **Ajustes → Câmeras** selecione **URL RTSP** em **Tipo de conexão** e cole a URL completa fornecida pela câmera. Por exemplo: `rtsp://usuario:senha@ip-da-camera:554/cam/realmonitor?channel=1&subtype=0`. A URL já inclui os dados de conexão; não é necessário preencher IP, porta, usuário ou senha separadamente. A mesma transmissão é usada nas opções HD e SD.
 

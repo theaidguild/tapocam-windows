@@ -311,12 +311,12 @@ public sealed class AppModel
         }
     }
 
-    public async Task<string> TestConnectionAsync(Camera camera, string secret)
+    public async Task<ConnectionTestReport> TestConnectionAsync(Camera camera, string secret)
     {
         if (_shuttingDown)
-            return "Teste cancelado.";
+            return ConnectionTestReport.Message("Teste cancelado.");
         try { return await _media.TestConnectionAsync(camera, secret, _lifetime.Token); }
-        catch (OperationCanceledException) when (_shuttingDown) { return "Teste cancelado."; }
+        catch (OperationCanceledException) when (_shuttingDown) { return ConnectionTestReport.Message("Teste cancelado."); }
     }
 
     public Task RemoveCameraAsync(Guid id) => RunSerialAsync(async () =>

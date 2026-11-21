@@ -153,6 +153,23 @@ public sealed class CoreBehaviorTests
     }
 
     [Fact]
+    public void ConnectionTestDetailsListStepsAndMaskCredentialsInOutput()
+    {
+        var report = new ConnectionTestReport("falhou", false,
+            [new("Conexão TCP", true, TimeSpan.FromMilliseconds(12), "cam:554 aceitou a conexão"),
+             new("Vídeo (ffmpeg)", false, TimeSpan.FromSeconds(2), "código de saída 1")],
+            "Input #0, rtsp, from 'rtsp://viewer:s3cret@cam:554/stream2?token=hidden'");
+
+        var details = report.Details();
+
+        Assert.Contains("[OK] Conexão TCP (12 ms): cam:554 aceitou a conexão", details);
+        Assert.Contains("[FALHA] Vídeo (ffmpeg) (2000 ms): código de saída 1", details);
+        Assert.Contains("[URL RTSP ocultada]", details);
+        Assert.DoesNotContain("s3cret", details);
+        Assert.DoesNotContain("token=hidden", details);
+    }
+
+    [Fact]
     public void ConnectionsRespectPerCameraDisconnectsUntilChanged()
     {
         var connections = new CameraConnections();

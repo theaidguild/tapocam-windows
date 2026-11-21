@@ -23,14 +23,15 @@ internal static class ProcessSupport
 
     public static async Task<(int ExitCode, string Output)> RunShortAsync(
         Func<ProcessStartInfo, Process> start, string executable, IEnumerable<string> args,
-        TimeSpan timeout, CancellationToken cancellationToken)
+        TimeSpan timeout, CancellationToken cancellationToken, bool hideRtspUrls = false)
     {
         var output = new OutputTail();
         var info = Hidden(executable, args);
         info.RedirectStandardOutput = true;
         using var process = start(info);
         process.StandardInput.Close();
-        var capture = Task.WhenAll(CaptureAsync(process.StandardOutput, output), CaptureAsync(process.StandardError, output));
+        var capture = Task.WhenAll(CaptureAsync(process.StandardOutput, output, hideRtspUrls),
+            CaptureAsync(process.StandardError, output, hideRtspUrls));
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(timeout);
         var exitCode = -1;
@@ -63,12 +64,12 @@ internal static class ProcessSupport
         catch (IOException) { }
     }
 
-    public static async Task CaptureAsync(StreamReader reader, OutputTail tail)
+    public static async Task CaptureAsync(StreamReader reader, OutputTail tail, bool hideRtspUrls = false)
     {
         try
         {
             while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
-                tail.Add(CredentialMasker.Mask(line));
+                tail.Add(hideRtspUrls ? CredentialMasker.MaskDiagnostic(line) : CredentialMasker.Mask(line));
         }
         catch (IOException) { }
         catch (ObjectDisposedException) { }

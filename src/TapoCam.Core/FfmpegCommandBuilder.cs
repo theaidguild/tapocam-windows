@@ -51,7 +51,8 @@ public static class FfmpegCommandBuilder
     public static IReadOnlyList<string> ConnectionTest(string cameraSdRtspUrl) =>
     [
         "-nostdin",
-        "-loglevel", "error",
+        "-hide_banner",
+        "-loglevel", "info",
         "-rtsp_transport", "tcp",
         "-timeout", "8000000",
         "-i", cameraSdRtspUrl,

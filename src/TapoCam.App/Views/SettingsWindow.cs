@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -24,18 +25,22 @@ internal sealed class SettingsWindow : Window
     private readonly Button remove;
     private TextBox name = null!, host = null!, port = null!, user = null!, fps = null!;
     private ComboBox connectionMode = null!;
-    private PasswordBox password = null!, rtspUrl = null!;
+    private PasswordBox password = null!;
+    private TextBox rtspUrl = null!;
     private CheckBox enabled = null!;
     private Button save = null!, revert = null!, test = null!;
     private TextBlock result = null!;
+    private Expander diagnostics = null!;
+    private TextBox diagnosticsText = null!;
     private ProgressBar testProgress = null!;
     private Camera? selected;
     private string originalSecret = "";
     private bool UsesCustomUrl => connectionMode.SelectedIndex == 1;
-    private string ConnectionSecret => UsesCustomUrl ? rtspUrl.Password.Trim() : password.Password;
+    private string ConnectionSecret => UsesCustomUrl ? rtspUrl.Text.Trim() : password.Password;
     private Point dragOrigin;
     private bool building;
     private bool testing;
+    private int diagnosticsRevision;
     private bool closing;
     private bool closeReady;
 
@@ -144,6 +149,7 @@ internal sealed class SettingsWindow : Window
 
     private void BuildEditor()
     {
+        diagnosticsRevision++;
         editor.Children.Clear();
         remove.IsEnabled = selected is not null;
         if (selected is not { } camera)
@@ -174,9 +180,9 @@ internal sealed class SettingsWindow : Window
         Hint(tapoFields, "Use o usuário e a senha da Conta da Câmera, criada no app Tapo em Configurações → Avançadas.");
         var urlFields = new StackPanel();
         editor.Children.Add(urlFields);
-        rtspUrl = new PasswordBox { Password = camera.UseCustomRtspUrl ? originalSecret : "", Margin = new Thickness(0, 0, 0, 4) };
+        rtspUrl = new TextBox { Text = camera.UseCustomRtspUrl ? originalSecret : "", Margin = new Thickness(0, 0, 0, 4) };
         AddField("URL RTSP", rtspUrl, parent: urlFields);
-        rtspUrl.PasswordChanged += (_, _) => UpdateEditor();
+        rtspUrl.TextChanged += (_, _) => UpdateEditor();
         Hint(urlFields, "Cole a URL completa, incluindo o caminho e os parâmetros da câmera. A mesma transmissão será usada para HD e SD.");
         fps = Field("Quadros por segundo", camera.Fps.ToString(CultureInfo.InvariantCulture));
         var buttons = new WrapPanel();
@@ -192,12 +198,29 @@ internal sealed class SettingsWindow : Window
         editor.Children.Add(testProgress);
         result = Ui.Text("");
         editor.Children.Add(result);
+        diagnosticsText = new TextBox
+        {
+            IsReadOnly = true, TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas"), FontSize = 11,
+            MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 4, 0, 4)
+        };
+        AutomationProperties.SetName(diagnosticsText, "Detalhes do diagnóstico");
+        var diagnosticsPanel = new StackPanel();
+        diagnosticsPanel.Children.Add(diagnosticsText);
+        diagnosticsPanel.Children.Add(Ui.Button("Copiar", CopyDiagnostics, "Copiar detalhes do diagnóstico"));
+        diagnostics = new Expander
+        {
+            Header = "Detalhes do diagnóstico", Content = diagnosticsPanel,
+            Margin = new Thickness(0, 4, 0, 4), Visibility = Visibility.Collapsed
+        };
+        editor.Children.Add(diagnostics);
         Hint(editor, "Alterações nas câmeras reconectam automaticamente. Se houver gravações em andamento, a reconexão espera até você aplicar na janela principal.");
         void UpdateMode()
         {
+            diagnosticsRevision++;
             tapoFields.Visibility = UsesCustomUrl ? Visibility.Collapsed : Visibility.Visible;
             urlFields.Visibility = UsesCustomUrl ? Visibility.Visible : Visibility.Collapsed;
             result.Text = "";
+            diagnostics.Visibility = Visibility.Collapsed;
             UpdateEditor();
         }
         connectionMode.SelectionChanged += (_, _) => UpdateMode();
@@ -248,7 +271,7 @@ internal sealed class SettingsWindow : Window
             !string.IsNullOrWhiteSpace(host.Text) && !string.IsNullOrWhiteSpace(user.Text) && password.Password.Length > 0);
     }
 
-    private Camera? Draft()
+    private Camera? Draft(bool validateConnection = true)
     {
         if (selected is null)
             return null;
@@ -271,7 +294,7 @@ internal sealed class SettingsWindow : Window
             User = UsesCustomUrl ? selected.User : user.Text, Fps = frameRate, Enabled = enabled.IsChecked == true,
             UseCustomRtspUrl = UsesCustomUrl
         };
-        if (draft.UseCustomRtspUrl && !draft.IsConfigured(ConnectionSecret))
+        if (validateConnection && draft.UseCustomRtspUrl && !draft.IsConfigured(ConnectionSecret))
         {
             result.Foreground = Brushes.DarkRed;
             result.Text = Camera.InvalidRtspUrlMessage;
@@ -332,28 +355,47 @@ internal sealed class SettingsWindow : Window
 
     private async Task TestAsync()
     {
-        if (Draft() is not { } camera)
+        if (Draft(validateConnection: false) is not { } camera)
             return;
         if (MessageBox.Show(this, "O teste conecta diretamente à câmera. Não o use durante uma gravação importante.",
             "Testar conexão", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK)
             return;
         var output = result;
         var progress = testProgress;
+        var details = diagnostics;
+        var detailsText = diagnosticsText;
+        var revision = diagnosticsRevision;
+        var secret = ConnectionSecret;
         testing = true;
         progress.Visibility = Visibility.Visible;
         progress.IsIndeterminate = true;
         output.Text = "";
+        details.Visibility = Visibility.Collapsed;
         UpdateEditor();
         await Ui.Run(this, async () =>
         {
-            var text = await model.TestConnectionAsync(camera, ConnectionSecret);
-            output.Text = text;
-            output.Foreground = text.StartsWith("Conexão OK:", StringComparison.Ordinal) ? Brushes.DarkGreen : Brushes.DarkRed;
+            var report = await model.TestConnectionAsync(camera, secret);
+            if (revision != diagnosticsRevision)
+                return;
+            output.Text = report.Summary;
+            output.Foreground = report.Success ? Brushes.DarkGreen : Brushes.DarkRed;
+            detailsText.Text = report.Details();
+            details.Visibility = detailsText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            details.IsExpanded = !report.Success;
         });
         testing = false;
         progress.IsIndeterminate = false;
         progress.Visibility = Visibility.Collapsed;
         UpdateEditor();
+    }
+
+    private void CopyDiagnostics()
+    {
+        try { Clipboard.SetText(diagnosticsText.Text); }
+        catch (ExternalException)
+        {
+            MessageBox.Show(this, "Não foi possível copiar o diagnóstico.", Title, MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async Task RemoveCameraAsync()
