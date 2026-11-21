@@ -22,6 +22,7 @@ internal sealed class SettingsWindow : Window
     private readonly ListBox cameraList = new() { Margin = new Thickness(0, 0, 8, 2), AllowDrop = true, DisplayMemberPath = "DisplayName" };
     private readonly StackPanel editor = new() { Margin = new Thickness(5, 0, 10, 4) };
     private readonly StackPanel agenda = new() { Margin = new Thickness(8) };
+    private readonly StackPanel footer = new() { Margin = new Thickness(5, 6, 10, 0) };
     private readonly Button remove;
     private TextBox name = null!, host = null!, port = null!, user = null!, fps = null!;
     private ComboBox connectionMode = null!;
@@ -48,9 +49,11 @@ internal sealed class SettingsWindow : Window
     {
         this.model = model;
         Title = "Ajustes";
-        Width = 640;
-        Height = 600;
-        ResizeMode = ResizeMode.NoResize;
+        Width = 720;
+        Height = 720;
+        MinWidth = 600;
+        MinHeight = 520;
+        ResizeMode = ResizeMode.CanResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Language = System.Windows.Markup.XmlLanguage.GetLanguage("pt-BR");
         Content = tabs;
@@ -66,7 +69,11 @@ internal sealed class SettingsWindow : Window
         listPane.Children.Add(cameraList);
         DockPanel.SetDock(listPane, Dock.Left);
         cameraPane.Children.Add(listPane);
-        cameraPane.Children.Add(Scroll(editor));
+        DockPanel.SetDock(footer, Dock.Bottom);
+        var editorPane = new DockPanel();
+        editorPane.Children.Add(footer);
+        editorPane.Children.Add(Scroll(editor));
+        cameraPane.Children.Add(editorPane);
         tabs.Items.Add(new TabItem { Header = "Câmeras", Content = cameraPane });
         tabs.Items.Add(new TabItem { Header = "Geral", Content = Scroll(BuildGeneral()) });
         tabs.Items.Add(new TabItem { Header = "Agenda", Content = Scroll(agenda) });
@@ -151,6 +158,7 @@ internal sealed class SettingsWindow : Window
     {
         diagnosticsRevision++;
         editor.Children.Clear();
+        footer.Children.Clear();
         remove.IsEnabled = selected is not null;
         if (selected is not { } camera)
         {
@@ -193,15 +201,15 @@ internal sealed class SettingsWindow : Window
         buttons.Children.Add(test);
         buttons.Children.Add(revert);
         buttons.Children.Add(save);
-        editor.Children.Add(buttons);
+        footer.Children.Add(buttons);
         testProgress = new ProgressBar { Height = 4, Margin = new Thickness(0, 4, 0, 4), Visibility = Visibility.Collapsed };
-        editor.Children.Add(testProgress);
+        footer.Children.Add(testProgress);
         result = Ui.Text("");
-        editor.Children.Add(result);
+        footer.Children.Add(result);
         diagnosticsText = new TextBox
         {
             IsReadOnly = true, TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas"), FontSize = 11,
-            MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 4, 0, 4)
+            MinHeight = 120, MaxHeight = 320, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 4, 0, 4)
         };
         AutomationProperties.SetName(diagnosticsText, "Detalhes do diagnóstico");
         var diagnosticsPanel = new StackPanel();
