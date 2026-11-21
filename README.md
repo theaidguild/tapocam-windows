@@ -1,12 +1,12 @@
 # TapoCam para Windows
 
-Veja, fotografe e grave câmeras TP-Link Tapo com RTSP na rede local. O TapoCam tem interface em português e funciona na área de notificação do Windows, mesmo com a janela principal fechada.
+Veja, fotografe e grave câmeras TP-Link Tapo e outras câmeras RTSP na rede local. O TapoCam tem interface em português e funciona na área de notificação do Windows, mesmo com a janela principal fechada.
 
 ## Requisitos
 
 - Windows 10 21H2 ou mais recente, ou Windows 11, **x64**.
 - [Microsoft Edge WebView2 Runtime (Evergreen)](https://developer.microsoft.com/microsoft-edge/webview2/#download). O instalador o baixa e instala se estiver ausente.
-- Câmera Tapo com suporte a RTSP acessível pelo PC na rede local.
+- Câmera com suporte a RTSP acessível pelo PC na rede local.
 
 O instalador inclui o runtime do .NET e o go2rtc e instala o [FFmpeg](https://www.gyan.dev/ffmpeg/builds/) com o `winget` (que já vem no Windows 10 e 11), se ele ainda não estiver instalado.
 
@@ -24,6 +24,8 @@ Também há um ZIP portátil, `TapoCam-<versão>-win-x64.zip`, que não instala 
 2. No TapoCam, abra **Ajustes → Câmeras**, clique em **+** e informe nome, IP local, usuário e senha da câmera. Comece com porta RTSP **554** e **25 quadros por segundo**; ajuste se sua câmera usar outros valores.
 3. Use **Testar conexão**, salve e volte à janela principal para conectar a câmera. Evite testar a conexão durante uma gravação importante: o teste abre uma sessão RTSP diretamente com a câmera.
 
+Para câmeras de outras marcas, como Intelbras/Mibo, em **Ajustes → Câmeras** selecione **URL RTSP** em **Tipo de conexão** e cole a URL completa fornecida pela câmera. Por exemplo: `rtsp://usuario:senha@ip-da-camera:554/cam/realmonitor?channel=1&subtype=0`. A URL já inclui os dados de conexão; não é necessário preencher IP, porta, usuário ou senha separadamente. A mesma transmissão é usada nas opções HD e SD.
+
 ## Uso
 
 - **Visualização:** a grade mostra prévias SD sem som. Selecione uma câmera para ver em foco, alternar entre HD e SD, gravar ou tirar uma foto. Em **Ajustes → Geral**, escolha entre visualização com áudio (HLS, alguns segundos de atraso) e visualização sem áudio (MSE, atraso mínimo).
@@ -36,7 +38,7 @@ Também há um ZIP portátil, `TapoCam-<versão>-win-x64.zip`, que não instala 
 | Dados | Local |
 |---|---|
 | Configurações e agenda | `%APPDATA%\TapoCam\settings.json` |
-| Senhas das câmeras | Gerenciador de Credenciais do Windows, entradas `TapoCam:<GUID>` do usuário |
+| Senhas das câmeras Tapo e URLs RTSP personalizadas | Gerenciador de Credenciais do Windows, entradas `TapoCam:<GUID>` do usuário |
 | Configuração gerada do go2rtc, logs e dados do WebView2 | `%LOCALAPPDATA%\TapoCam\` |
 | Gravações e fotos | `%USERPROFILE%\Videos\TapoCam\` por padrão; altere em **Ajustes → Geral** |
 
@@ -44,7 +46,7 @@ O TapoCam reproduz e grava localmente. O relay usa apenas a interface de loopbac
 
 ## Solução de problemas
 
-- **Não conecta à câmera:** confira o IP, a porta TCP 554 e a Conta da Câmera. Coloque PC e câmera em redes que permitam comunicação entre si; redes de convidados podem isolar os dispositivos. Verifique o firewall sem desativá-lo e não exponha a câmera à internet.
+- **Não conecta à câmera:** confira o endereço, a porta RTSP (normalmente 554) e as credenciais. Se usar uma URL RTSP, confira também o caminho e os parâmetros. Coloque PC e câmera em redes que permitam comunicação entre si; redes de convidados podem isolar os dispositivos. Verifique o firewall sem desativá-lo e não exponha a câmera à internet.
 - **Vídeo em branco ou aviso do WebView2:** instale ou repare o [WebView2 Runtime Evergreen](https://developer.microsoft.com/microsoft-edge/webview2/#download) e reinicie o TapoCam. Se o relay não iniciar, verifique `%LOCALAPPDATA%\TapoCam\go2rtc.log` e se outro processo já usa uma das portas locais.
 - **Aviso do SmartScreen:** confirme a origem do download na página oficial de Releases antes de tomar qualquer decisão. Não desative o SmartScreen nem ignore avisos de arquivos de origem desconhecida.
 - **"ffmpeg não encontrado":** a instalação automática do FFmpeg falhou ou foi desmarcada. Execute `winget install Gyan.FFmpeg.Essentials` no PowerShell e reinicie o TapoCam.

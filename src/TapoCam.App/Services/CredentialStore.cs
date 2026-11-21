@@ -19,7 +19,7 @@ internal sealed class CredentialStore : ISecretStore
             var error = Marshal.GetLastWin32Error();
             if (error == NotFound)
                 return null;
-            throw new Win32Exception(error, "Não foi possível ler a senha.");
+            throw new Win32Exception(error, "Não foi possível ler a credencial da câmera.");
         }
 
         try
@@ -33,9 +33,9 @@ internal sealed class CredentialStore : ISecretStore
         }
     }
 
-    public void Set(Guid cameraId, string password)
+    public void Set(Guid cameraId, string secret)
     {
-        var bytes = Encoding.Unicode.GetBytes(password);
+        var bytes = Encoding.Unicode.GetBytes(secret);
         var pointer = Marshal.AllocHGlobal(bytes.Length);
         try
         {
@@ -46,7 +46,7 @@ internal sealed class CredentialStore : ISecretStore
                 BlobSize = (uint)bytes.Length, Blob = pointer, UserName = "TapoCam"
             };
             if (!CredWrite(ref credential, 0))
-                throw new Win32Exception(Marshal.GetLastWin32Error(), "Não foi possível salvar a senha. Tente de novo.");
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Não foi possível salvar a credencial da câmera. Tente de novo.");
         }
         finally
         {
@@ -62,7 +62,7 @@ internal sealed class CredentialStore : ISecretStore
         {
             var error = Marshal.GetLastWin32Error();
             if (error != NotFound)
-                throw new Win32Exception(error, "Não foi possível excluir a senha.");
+                throw new Win32Exception(error, "Não foi possível excluir a credencial da câmera.");
         }
     }
 

@@ -46,11 +46,11 @@ internal sealed class CameraMedia(
         return LastLine(output);
     }
 
-    public async Task<string> TestConnectionAsync(Camera camera, string password, CancellationToken cancellationToken)
+    public async Task<string> TestConnectionAsync(Camera camera, string secret, CancellationToken cancellationToken)
     {
-        if (!camera.IsConfigured(password))
-            return "Preencha o IP, o usuário e a senha.";
-        var result = await probe.ProbeAsync(camera.Host, camera.Port, cancellationToken);
+        if (!camera.IsConfigured(secret) || camera.RtspEndpoint(secret) is not { } endpoint)
+            return camera.UseCustomRtspUrl ? Camera.InvalidRtspUrlMessage : "Preencha o IP, o usuário e a senha.";
+        var result = await probe.ProbeAsync(endpoint.Host, endpoint.Port, cancellationToken);
         if (!result.Reachable)
             return result.Message ?? "Sem acesso à câmera.";
         if (ffmpeg is null || !File.Exists(ffmpeg))
@@ -58,13 +58,15 @@ internal sealed class CameraMedia(
         try
         {
             var (code, output) = await ProcessSupport.RunShortAsync(startProcess, ffmpeg,
-                FfmpegCommandBuilder.ConnectionTest(camera.RtspUrl(StreamQuality.Sd, password)),
+                FfmpegCommandBuilder.ConnectionTest(camera.RtspUrl(StreamQuality.Sd, secret)),
                 TimeSpan.FromSeconds(15), cancellationToken);
             if (code == 0)
                 return "Conexão OK: a câmera enviou vídeo.";
             if (output.Contains("401", StringComparison.OrdinalIgnoreCase) ||
                 output.Contains("unauthorized", StringComparison.OrdinalIgnoreCase))
-                return "Usuário ou senha incorretos. Use a Conta da Câmera criada no app Tapo.";
+                return camera.UseCustomRtspUrl
+                    ? "Usuário ou senha incorretos. Confira as credenciais na URL RTSP."
+                    : "Usuário ou senha incorretos. Use a Conta da Câmera criada no app Tapo.";
             return $"A câmera respondeu, mas o vídeo falhou: {LastLine(output)}";
         }
         catch (Exception ex) when (CameraSession.IsFileError(ex) ||

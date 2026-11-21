@@ -6,13 +6,13 @@ namespace TapoCam.Core;
 public static class Go2RtcConfigBuilder
 {
     public static string Build(
-        IEnumerable<(Camera Camera, string Password)> cameras,
+        IEnumerable<(Camera Camera, string Secret)> cameras,
         string? ffmpegPath,
         bool audioMode)
     {
         ArgumentNullException.ThrowIfNull(cameras);
         var configured = cameras
-            .Where(item => item.Camera.IsActive(item.Password))
+            .Where(item => item.Camera.IsActive(item.Secret))
             .OrderBy(item => item.Camera.Id)
             .ToArray();
 
@@ -39,12 +39,14 @@ public static class Go2RtcConfigBuilder
         }
 
         yaml.AppendLine("streams:");
-        foreach (var (camera, password) in configured)
+        foreach (var (camera, secret) in configured)
         {
             foreach (var quality in new[] { StreamQuality.Hd, StreamQuality.Sd })
             {
+                if (camera.UseCustomRtspUrl && quality == StreamQuality.Sd)
+                    continue;
                 var name = camera.StreamName(quality);
-                var url = camera.RtspUrl(quality, password);
+                var url = camera.RtspUrl(quality, secret);
                 if (audioMode && !string.IsNullOrWhiteSpace(ffmpegPath))
                 {
                     yaml.Append("  ").Append(name).AppendLine(":")

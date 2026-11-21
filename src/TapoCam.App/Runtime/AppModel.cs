@@ -35,7 +35,7 @@ public sealed class AppModel
     private readonly CameraConnections _connections = new();
     private readonly RetryBackoff _relayBackoff = new();
     private readonly Dictionary<Guid, CameraSession> _sessions = [];
-    private readonly Dictionary<Guid, string> _passwords = [];
+    private readonly Dictionary<Guid, string> _cameraSecrets = [];
     private readonly HashSet<string> _snapshots = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _serial = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
@@ -135,7 +135,7 @@ public sealed class AppModel
     {
         var camera = FindCamera(id);
         _sessions.TryGetValue(id, out var session);
-        var configured = camera?.IsConfigured(GetPassword(id)) == true;
+        var configured = camera?.IsConfigured(GetCameraSecret(id)) == true;
         var active = camera is { Enabled: true } && configured;
         var wanted = active && _connections.WantsConnection(id);
         var connected = wanted && RelayState == RelayState.Running && !_relayBusy;
@@ -311,11 +311,11 @@ public sealed class AppModel
         }
     }
 
-    public async Task<string> TestConnectionAsync(Camera camera, string password)
+    public async Task<string> TestConnectionAsync(Camera camera, string secret)
     {
         if (_shuttingDown)
             return "Teste cancelado.";
-        try { return await _media.TestConnectionAsync(camera, password, _lifetime.Token); }
+        try { return await _media.TestConnectionAsync(camera, secret, _lifetime.Token); }
         catch (OperationCanceledException) when (_shuttingDown) { return "Teste cancelado."; }
     }
 
@@ -331,11 +331,11 @@ public sealed class AppModel
             _selectedCameraId = null;
         if (Settings.SettingsCamera == id)
             Settings.SettingsCamera = null;
-        _passwords.Remove(id);
+        _cameraSecrets.Remove(id);
         try { _secrets.Delete(id); }
         catch (Exception ex) when (IsSettingsError(ex))
         {
-            Error = "Não foi possível apagar a senha da câmera.";
+            Error = "Não foi possível apagar a credencial da câmera.";
         }
         if (_sessions.TryGetValue(id, out var session))
         {
@@ -347,32 +347,32 @@ public sealed class AppModel
         SaveSettings();
     });
 
-    public string GetPassword(Guid id)
+    public string GetCameraSecret(Guid id)
     {
-        if (_passwords.TryGetValue(id, out var password))
-            return password;
-        try { password = _secrets.Get(id) ?? ""; }
-        catch (Exception ex) when (IsSettingsError(ex)) { password = ""; }
-        _passwords[id] = password;
-        return password;
+        if (_cameraSecrets.TryGetValue(id, out var secret))
+            return secret;
+        try { secret = _secrets.Get(id) ?? ""; }
+        catch (Exception ex) when (IsSettingsError(ex)) { secret = ""; }
+        _cameraSecrets[id] = secret;
+        return secret;
     }
 
-    public void SetPassword(Guid id, string password)
+    public void SetCameraSecret(Guid id, string secret)
     {
-        if (password == GetPassword(id))
+        if (secret == GetCameraSecret(id))
             return;
         try
         {
-            if (password.Length == 0)
+            if (secret.Length == 0)
                 _secrets.Delete(id);
             else
-                _secrets.Set(id, password);
-            _passwords[id] = password;
+                _secrets.Set(id, secret);
+            _cameraSecrets[id] = secret;
         }
         catch (Exception ex) when (IsSettingsError(ex))
         {
-            Error = "Não foi possível salvar a senha. Tente de novo.";
-            Notify("Senha não salva", Error);
+            Error = "Não foi possível salvar a credencial da câmera. Tente de novo.";
+            Notify("Credencial não salva", Error);
         }
         Publish();
     }
@@ -562,8 +562,9 @@ public sealed class AppModel
 
     private async Task ProbeAsync(Camera camera, CameraSession session)
     {
-        var host = camera.Host;
-        var port = camera.Port;
+        if (camera.RtspEndpoint(GetCameraSecret(camera.Id)) is not { } endpoint)
+            return;
+        var (host, port) = endpoint;
         if (session.ProbeHost != host || session.ProbePort != port)
         {
             session.ResetHealth();
@@ -574,7 +575,7 @@ public sealed class AppModel
         {
             var update = await session.Health.CheckAsync(host, port, _lifetime.Token);
             if (update is null || _shuttingDown || !IsRequested(camera) || RelayState != RelayState.Running || _relayBusy
-                || camera.Host != host || camera.Port != port)
+                || camera.RtspEndpoint(GetCameraSecret(camera.Id)) != endpoint)
                 return;
             session.ProbeWarning = update.Result.Reachable ? null : update.Result.Message;
             if (update.Changed && Settings.NotifyCameraStatus)
@@ -598,7 +599,9 @@ public sealed class AppModel
         var log = await _relay.ReadLogTailAsync();
         var local = TimeZoneInfo.ConvertTime(now, _timeZone);
         foreach (var camera in Settings.Cameras)
-            Session(camera.Id).Warning = IsRequested(camera) ? LogParser.RecentError(log, camera.Host, local) : null;
+            Session(camera.Id).Warning = IsRequested(camera) && camera.RtspEndpoint(GetCameraSecret(camera.Id)) is { } endpoint
+                ? LogParser.RecentError(log, endpoint.Host, local)
+                : null;
     }
 
     private async Task RunRetentionAsync(DateTimeOffset now)
@@ -704,7 +707,7 @@ public sealed class AppModel
 
     private void ShowIncompleteCamera()
     {
-        Error = "Preencha o IP, o usuário e a senha desta câmera em Ajustes.";
+        Error = "Preencha o IP, o usuário e a senha ou informe uma URL RTSP válida em Ajustes.";
         Publish();
     }
 
@@ -756,7 +759,7 @@ public sealed class AppModel
     }
 
     private Camera? FindCamera(Guid id) => Settings.Cameras.Find(camera => camera.Id == id);
-    private bool IsActive(Camera camera) => camera.IsActive(GetPassword(camera.Id));
+    private bool IsActive(Camera camera) => camera.IsActive(GetCameraSecret(camera.Id));
     private bool IsRequested(Camera camera) => _connections.WantsConnection(camera.Id) && IsActive(camera);
     private bool IsRecording => _sessions.Values.Any(session => session.IsRecording);
     private DateTimeOffset Now => _clock.GetUtcNow();
@@ -765,7 +768,7 @@ public sealed class AppModel
         .Where(c => _connections.AllowsSchedule(c.Id) && IsActive(c)).Select(c => c.Id).ToArray();
     private IReadOnlyDictionary<Guid, ScheduleWindow> CurrentWindows(DateTimeOffset now) =>
         ScheduleCalculator.CurrentWindows(now, _timeZone, Settings.ScheduleRules, EligibleCameraIds());
-    private string BuildConfig() => Go2RtcConfigBuilder.Build(Settings.Cameras.Select(c => (c, GetPassword(c.Id))),
+    private string BuildConfig() => Go2RtcConfigBuilder.Build(Settings.Cameras.Select(c => (c, GetCameraSecret(c.Id))),
         _ffmpeg is not null && File.Exists(_ffmpeg) ? _ffmpeg : null, audioMode: Settings.EffectivePlayerMode == "hls");
 
     private static void TryDelete(string path)

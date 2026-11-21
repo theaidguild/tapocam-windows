@@ -23,13 +23,16 @@ internal sealed class SettingsWindow : Window
     private readonly StackPanel agenda = new() { Margin = new Thickness(8) };
     private readonly Button remove;
     private TextBox name = null!, host = null!, port = null!, user = null!, fps = null!;
-    private PasswordBox password = null!;
+    private ComboBox connectionMode = null!;
+    private PasswordBox password = null!, rtspUrl = null!;
     private CheckBox enabled = null!;
     private Button save = null!, revert = null!, test = null!;
     private TextBlock result = null!;
     private ProgressBar testProgress = null!;
     private Camera? selected;
-    private string originalPassword = "";
+    private string originalSecret = "";
+    private bool UsesCustomUrl => connectionMode.SelectedIndex == 1;
+    private string ConnectionSecret => UsesCustomUrl ? rtspUrl.Password.Trim() : password.Password;
     private Point dragOrigin;
     private bool building;
     private bool testing;
@@ -148,19 +151,34 @@ internal sealed class SettingsWindow : Window
             editor.Children.Add(Ui.Text("Nenhuma câmera"));
             return;
         }
-        originalPassword = model.GetPassword(camera.Id);
+        originalSecret = model.GetCameraSecret(camera.Id);
         name = Field("Nome", camera.Name, "Sala");
         enabled = Ui.Check("Ativa", camera.Enabled, _ => UpdateEditor());
         editor.Children.Add(enabled);
         Heading(editor, "Conexão");
-        host = Field("Endereço IP", camera.Ip, "192.168.0.100");
-        port = Field("Porta RTSP", camera.Port.ToString(CultureInfo.InvariantCulture));
-        user = Field("Usuário", camera.User);
-        password = new PasswordBox { Password = originalPassword, Margin = new Thickness(0, 0, 0, 4) };
-        AddField("Senha", password);
+        connectionMode = new ComboBox
+        {
+            ItemsSource = new[] { "Tapo (IP, usuário e senha)", "URL RTSP" },
+            SelectedIndex = camera.UseCustomRtspUrl ? 1 : 0,
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        AddField("Tipo de conexão", connectionMode);
+        var tapoFields = new StackPanel();
+        editor.Children.Add(tapoFields);
+        host = Field("Endereço IP", camera.Ip, "192.168.0.100", tapoFields);
+        port = Field("Porta RTSP", camera.Port.ToString(CultureInfo.InvariantCulture), parent: tapoFields);
+        user = Field("Usuário", camera.User, parent: tapoFields);
+        password = new PasswordBox { Password = camera.UseCustomRtspUrl ? "" : originalSecret, Margin = new Thickness(0, 0, 0, 4) };
+        AddField("Senha", password, parent: tapoFields);
         password.PasswordChanged += (_, _) => UpdateEditor();
+        Hint(tapoFields, "Use o usuário e a senha da Conta da Câmera, criada no app Tapo em Configurações → Avançadas.");
+        var urlFields = new StackPanel();
+        editor.Children.Add(urlFields);
+        rtspUrl = new PasswordBox { Password = camera.UseCustomRtspUrl ? originalSecret : "", Margin = new Thickness(0, 0, 0, 4) };
+        AddField("URL RTSP", rtspUrl, parent: urlFields);
+        rtspUrl.PasswordChanged += (_, _) => UpdateEditor();
+        Hint(urlFields, "Cole a URL completa, incluindo o caminho e os parâmetros da câmera. A mesma transmissão será usada para HD e SD.");
         fps = Field("Quadros por segundo", camera.Fps.ToString(CultureInfo.InvariantCulture));
-        Hint(editor, "Use o usuário e a senha da Conta da Câmera, criada no app Tapo em Configurações → Avançadas.");
         var buttons = new WrapPanel();
         test = Ui.Button("Testar conexão", () => _ = TestAsync());
         revert = Ui.Button("Reverter", BuildEditor);
@@ -175,10 +193,18 @@ internal sealed class SettingsWindow : Window
         result = Ui.Text("");
         editor.Children.Add(result);
         Hint(editor, "Alterações nas câmeras reconectam automaticamente. Se houver gravações em andamento, a reconexão espera até você aplicar na janela principal.");
-        UpdateEditor();
+        void UpdateMode()
+        {
+            tapoFields.Visibility = UsesCustomUrl ? Visibility.Collapsed : Visibility.Visible;
+            urlFields.Visibility = UsesCustomUrl ? Visibility.Visible : Visibility.Collapsed;
+            result.Text = "";
+            UpdateEditor();
+        }
+        connectionMode.SelectionChanged += (_, _) => UpdateMode();
+        UpdateMode();
     }
 
-    private TextBox Field(string caption, string initial, string? placeholder = null)
+    private TextBox Field(string caption, string initial, string? placeholder = null, Panel? parent = null)
     {
         var box = new TextBox { Text = initial, Margin = new Thickness(0, 0, 0, 4) };
         if (placeholder is not null)
@@ -188,54 +214,70 @@ internal sealed class SettingsWindow : Window
             var layer = new Grid();
             layer.Children.Add(box);
             layer.Children.Add(hint);
-            AddField(caption, layer, box);
+            AddField(caption, layer, box, parent);
             void ShowHint() => hint.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             box.TextChanged += (_, _) => ShowHint();
             ShowHint();
         }
         else
-            AddField(caption, box);
+            AddField(caption, box, parent: parent);
         box.TextChanged += (_, _) => UpdateEditor();
         return box;
     }
 
-    private void AddField(string text, FrameworkElement value, FrameworkElement? target = null)
+    private void AddField(string text, FrameworkElement value, FrameworkElement? target = null, Panel? parent = null)
     {
-        editor.Children.Add(new Label { Content = text, Target = target ?? value, Padding = new Thickness(0, 1, 0, 1) });
-        editor.Children.Add(value);
+        parent ??= editor;
+        parent.Children.Add(new Label { Content = text, Target = target ?? value, Padding = new Thickness(0, 1, 0, 1) });
+        parent.Children.Add(value);
         AutomationProperties.SetName(target ?? value, text);
     }
 
     private bool IsDirty() => selected is { } camera &&
-        (camera.Name != name.Text || camera.Ip != host.Text || camera.User != user.Text ||
-         camera.Port.ToString(CultureInfo.InvariantCulture) != port.Text ||
+        (camera.Name != name.Text || camera.UseCustomRtspUrl != UsesCustomUrl ||
+         (!UsesCustomUrl && (camera.Ip != host.Text || camera.User != user.Text ||
+         camera.Port.ToString(CultureInfo.InvariantCulture) != port.Text)) ||
          camera.Fps.ToString(CultureInfo.InvariantCulture) != fps.Text ||
-         camera.Enabled != (enabled.IsChecked == true) || originalPassword != password.Password);
+         camera.Enabled != (enabled.IsChecked == true) || originalSecret != ConnectionSecret);
 
     private void UpdateEditor()
     {
         var dirty = IsDirty();
         save.IsEnabled = revert.IsEnabled = dirty;
-        test.IsEnabled = !testing && !string.IsNullOrWhiteSpace(host.Text) &&
-            !string.IsNullOrWhiteSpace(user.Text) && password.Password.Length > 0;
+        test.IsEnabled = !testing && (UsesCustomUrl ? ConnectionSecret.Length > 0 :
+            !string.IsNullOrWhiteSpace(host.Text) && !string.IsNullOrWhiteSpace(user.Text) && password.Password.Length > 0);
     }
 
     private Camera? Draft()
     {
         if (selected is null)
             return null;
-        if (!int.TryParse(port.Text, out var portNumber) || portNumber is < 1 or > 65535 ||
-            !int.TryParse(fps.Text, out var frameRate) || frameRate < 1)
+        var portNumber = selected.Port;
+        if (!UsesCustomUrl && (!int.TryParse(port.Text, out portNumber) || portNumber is < 1 or > 65535))
         {
             result.Foreground = Brushes.DarkRed;
-            result.Text = "Informe uma porta RTSP entre 1 e 65535 e pelo menos 1 quadro por segundo.";
+            result.Text = "Informe uma porta RTSP entre 1 e 65535.";
             return null;
         }
-        return new Camera
+        if (!int.TryParse(fps.Text, out var frameRate) || frameRate < 1)
         {
-            Id = selected.Id, Name = name.Text, Ip = host.Text, Port = portNumber,
-            User = user.Text, Fps = frameRate, Enabled = enabled.IsChecked == true
+            result.Foreground = Brushes.DarkRed;
+            result.Text = "Informe pelo menos 1 quadro por segundo.";
+            return null;
+        }
+        var draft = new Camera
+        {
+            Id = selected.Id, Name = name.Text, Ip = UsesCustomUrl ? selected.Ip : host.Text, Port = portNumber,
+            User = UsesCustomUrl ? selected.User : user.Text, Fps = frameRate, Enabled = enabled.IsChecked == true,
+            UseCustomRtspUrl = UsesCustomUrl
         };
+        if (draft.UseCustomRtspUrl && !draft.IsConfigured(ConnectionSecret))
+        {
+            result.Foreground = Brushes.DarkRed;
+            result.Text = Camera.InvalidRtspUrlMessage;
+            return null;
+        }
+        return draft;
     }
 
     private async Task<bool> SaveEditorAsync()
@@ -244,17 +286,17 @@ internal sealed class SettingsWindow : Window
             return true;
         if (Draft() is not { } draft || selected is not { } camera)
             return false;
-        if (originalPassword != password.Password)
+        var value = ConnectionSecret;
+        if (originalSecret != value)
         {
-            var value = password.Password;
-            model.SetPassword(camera.Id, value);
-            if (model.GetPassword(camera.Id) != value)
+            model.SetCameraSecret(camera.Id, value);
+            if (model.GetCameraSecret(camera.Id) != value)
             {
                 result.Foreground = Brushes.DarkRed;
-                result.Text = model.Error ?? "Não foi possível salvar a senha.";
+                result.Text = model.Error ?? "Não foi possível salvar a credencial da câmera.";
                 return false;
             }
-            originalPassword = value;
+            originalSecret = value;
         }
         camera.Name = draft.Name;
         camera.Ip = draft.Ip;
@@ -262,6 +304,7 @@ internal sealed class SettingsWindow : Window
         camera.User = draft.User;
         camera.Fps = draft.Fps;
         camera.Enabled = draft.Enabled;
+        camera.UseCustomRtspUrl = draft.UseCustomRtspUrl;
         building = true;
         cameraList.Items.Refresh();
         building = false;
@@ -303,7 +346,7 @@ internal sealed class SettingsWindow : Window
         UpdateEditor();
         await Ui.Run(this, async () =>
         {
-            var text = await model.TestConnectionAsync(camera, password.Password);
+            var text = await model.TestConnectionAsync(camera, ConnectionSecret);
             output.Text = text;
             output.Foreground = text.StartsWith("Conexão OK:", StringComparison.Ordinal) ? Brushes.DarkGreen : Brushes.DarkRed;
         });

@@ -5,6 +5,71 @@ namespace TapoCam.Core.Tests;
 public sealed class CameraInfrastructureTests
 {
     [Theory]
+    [InlineData("  rtsp://viewer:p%40ss@camera.local:8554/cam/realmonitor?channel=1&subtype=0  ", "camera.local", 8554)]
+    [InlineData("rtsp://camera.local/live", "camera.local", 554)]
+    [InlineData("rtsp://[2001:db8::1]/live", "2001:db8::1", 554)]
+    public void DirectRtspUsesTheOriginalUrlAndItsEndpoint(string url, string host, int port)
+    {
+        var camera = new Camera { UseCustomRtspUrl = true, Ip = "old-host", Port = 9999 };
+
+        Assert.True(camera.IsActive(url));
+        Assert.Equal((host, port), camera.RtspEndpoint(url));
+        Assert.Equal(url.Trim(), camera.RtspUrl(StreamQuality.Hd, url));
+        Assert.Equal(url.Trim(), camera.RtspUrl(StreamQuality.Sd, url));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("camera.local/live")]
+    [InlineData("http://camera.local/live")]
+    [InlineData("rtsp:///live")]
+    [InlineData("rtsp://camera.local:0/live")]
+    [InlineData("rtsp://camera.local:65536/live")]
+    [InlineData("rtsp://camera.local/live#option")]
+    [InlineData("rtsp://camera.local/li\nve")]
+    public void InvalidDirectRtspDoesNotFallBackToTapo(string url)
+    {
+        var camera = new Camera { UseCustomRtspUrl = true, Ip = "old-host", User = "viewer" };
+
+        Assert.False(camera.IsConfigured(url));
+        Assert.Null(camera.RtspEndpoint(url));
+        Assert.Contains("streams: {}", Go2RtcConfigBuilder.Build([(camera, url)], null, audioMode: false));
+    }
+
+    [Fact]
+    public void DirectRtspSharesOneRelayStreamAndSavesOnlyTheModeInSettings()
+    {
+        var camera = new Camera { UseCustomRtspUrl = true };
+        const string url = "rtsp://viewer:example@camera.local:554/cam/realmonitor?channel=1&subtype=0";
+        var stream = camera.StreamName(StreamQuality.Hd);
+        var config = Go2RtcConfigBuilder.Build([(camera, url)], null, audioMode: false);
+
+        Assert.Equal(stream, camera.StreamName(StreamQuality.Sd));
+        Assert.Equal($"  {stream}: '{url}'", Assert.Single(config.Split('\n')
+            .Select(line => line.TrimEnd()), line => line.StartsWith("  cam_", StringComparison.Ordinal)));
+        Assert.Contains($"?src={stream}&", PlayerUrlBuilder.Grid(camera));
+
+        var settings = new AppSettings { Cameras = [camera] };
+        var json = System.Text.Json.JsonSerializer.Serialize(settings);
+        Assert.DoesNotContain("rtsp://", json);
+        Assert.True(Assert.Single(System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json)!.Cameras).UseCustomRtspUrl);
+    }
+
+    [Fact]
+    public void DirectRtspAudioConfigPreservesUrlAndUsesOneStream()
+    {
+        var camera = new Camera { UseCustomRtspUrl = true };
+        const string url = "rtsp://viewer:example@camera.local/live?name=cam'1&channel=1";
+        var stream = camera.StreamName(StreamQuality.Hd);
+
+        var config = Go2RtcConfigBuilder.Build([(camera, url)], "ffmpeg", audioMode: true);
+
+        Assert.Single(config.Split('\n'), line => line.StartsWith("  cam_", StringComparison.Ordinal));
+        Assert.Contains("    - 'rtsp://viewer:example@camera.local/live?name=cam''1&channel=1'", config);
+        Assert.Contains($"    - 'ffmpeg:{stream}#audio=aac'", config);
+    }
+
+    [Theory]
     [InlineData("  ", "user", "password", false)]
     [InlineData("192.0.2.10", " \t", "password", false)]
     [InlineData("192.0.2.10", "user", null, false)]

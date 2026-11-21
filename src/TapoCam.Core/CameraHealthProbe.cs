@@ -25,7 +25,7 @@ public sealed class TcpCameraHealthProbe : ICameraHealthProbe
         catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionRefused)
         {
             return new(false,
-                $"A câmera em {host}:{port} recusou a conexão. Confira a porta RTSP e se a Conta da Câmera está criada no app Tapo.");
+                $"A câmera em {host}:{port} recusou a conexão. Confira a porta RTSP e se o serviço RTSP está habilitado na câmera.");
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

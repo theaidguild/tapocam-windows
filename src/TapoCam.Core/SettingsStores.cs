@@ -11,6 +11,6 @@ public interface ISettingsStore
 public interface ISecretStore
 {
     string? Get(Guid cameraId);
-    void Set(Guid cameraId, string password);
+    void Set(Guid cameraId, string secret);
     void Delete(Guid cameraId);
 }
