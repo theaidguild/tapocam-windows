@@ -12,9 +12,11 @@ O instalador inclui o runtime do .NET e o go2rtc e instala o [FFmpeg](https://ww
 
 ## Instalação
 
-1. Em [Releases](https://github.com/hpi-sail/tapocam-windows/releases), baixe `TapoCam-<versão>-win-x64-setup.exe`. O arquivo `Source code (zip)` não é o aplicativo.
+1. Em [Releases](https://github.com/theaidguild/tapocam-windows/releases), baixe `TapoCam-<versão>-win-x64-setup.exe`. O arquivo `Source code (zip)` não é o aplicativo.
 2. Execute o instalador. Ele instala o TapoCam só para o seu usuário, sem pedir permissão de administrador. Se o WebView2 estiver ausente, o instalador precisa de internet para baixá-lo da Microsoft. Se o FFmpeg não for encontrado, a opção **Instalar o FFmpeg com o winget** vem marcada e uma janela mostra o progresso do `winget`.
-3. Abra o TapoCam pelo menu Iniciar. Para atualizar, execute o instalador da nova versão; as configurações são mantidas.
+3. Abra o TapoCam pelo menu Iniciar. As configurações são mantidas ao atualizar.
+
+Para verificar atualizações, clique com o botão direito no ícone do TapoCam na bandeja e escolha **Verificar atualizações…**. Se uma nova versão estiver disponível, você pode aceitar o download e a instalação silenciosa; o aplicativo será reiniciado ao terminar. Atualizações não começam enquanto houver uma gravação ativa. O TapoCam verifica a integridade do instalador usando o SHA-256 informado pelo GitHub Releases. Esta opção atualiza instalações feitas pelo instalador; versões portáteis devem ser substituídas manualmente.
 
 Também há um ZIP portátil, `TapoCam-<versão>-win-x64.zip`, que não instala o WebView2 nem inclui o FFmpeg: instale o WebView2 se estiver ausente e execute `winget install Gyan.FFmpeg.Essentials` antes de usar.
 
@@ -66,4 +68,4 @@ O script testa a solução e gera em `dist\` o instalador `TapoCam-<versão>-win
 
 ### Distribuir um release
 
-Cada push na `main` que passa no CI publica automaticamente um novo Release (com instalador e ZIP), incrementando o patch do último Release publicado (por exemplo, `v1.0.0` → `v1.0.1`). Para mudar a versão major/minor, aumente `VersionPrefix` em `Directory.Build.props`; ela é usada quando for maior que o último Release. Enviar manualmente uma tag `v<versão>` também dispara o fluxo de release. O go2rtc v1.9.15 (MIT) é baixado de um release específico e verificado com SHA-256. O FFmpeg não é distribuído com o TapoCam; o instalador o obtém pelo `winget` diretamente do publicador. Consulte [os avisos de terceiros](packaging/licenses/THIRD-PARTY-NOTICES.txt).
+Cada push na `main` que passa no CI publica automaticamente um novo Release (com instalador e ZIP), incrementando o patch do último Release publicado (por exemplo, `v1.0.0` → `v1.0.1`). Para mudar a versão major/minor, aumente `VersionPrefix` em `Directory.Build.props`; ela é usada quando for maior que o último Release. Enviar manualmente uma tag `v<versão>` também dispara o fluxo de release. O atualizador consulta os Releases públicos de `theaidguild/tapocam-windows`; a API do GitHub fornece o SHA-256 dos assets. O go2rtc v1.9.15 (MIT) é baixado de um release específico e verificado com SHA-256. O FFmpeg não é distribuído com o TapoCam; o instalador o obtém pelo `winget` diretamente do publicador. Consulte [os avisos de terceiros](packaging/licenses/THIRD-PARTY-NOTICES.txt).

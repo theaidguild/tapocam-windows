@@ -15,15 +15,17 @@ internal sealed class TrayMenu : IDisposable
     private readonly MainWindow _window;
     private readonly Action _show;
     private readonly Func<Task> _exit;
+    private readonly Func<Task> _checkUpdates;
     private readonly BitmapImage _camera = LoadIcon("Camera");
     private readonly BitmapImage _recording = LoadIcon("Recording");
 
-    public TrayMenu(AppModel model, MainWindow window, Action show, Func<Task> exit)
+    public TrayMenu(AppModel model, MainWindow window, Action show, Func<Task> exit, Func<Task> checkUpdates)
     {
         _model = model;
         _window = window;
         _show = show;
         _exit = exit;
+        _checkUpdates = checkUpdates;
         _tray = new TaskbarIcon
         {
             IconSource = _camera,
@@ -88,6 +90,7 @@ internal sealed class TrayMenu : IDisposable
             ? Item("Desconectar todas", _model.DisconnectAllAsync)
             : Item("Conectar todas", () => { _model.ConnectAll(); return Task.CompletedTask; }));
         items.Add(new Separator());
+        items.Add(Item("Verificar atualizações…", _checkUpdates));
         items.Add(Item("Sair do TapoCam", _exit));
     }
 

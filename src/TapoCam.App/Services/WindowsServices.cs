@@ -117,6 +117,20 @@ internal static class WindowsServices
         }
     }
 
+    public static bool IsInstallerManaged
+    {
+        get
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"Software\TapoCam");
+            var installPath = key?.GetValue("InstallPath") as string;
+            var processPath = Environment.ProcessPath;
+            return key?.GetValue("InstallerManaged") is int value && value == 1 &&
+                installPath is not null && processPath is not null &&
+                string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(installPath)),
+                    Path.GetDirectoryName(Path.GetFullPath(processPath)), StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     public static void SetLaunchAtSignIn(bool enabled)
     {
         using var key = Registry.CurrentUser.CreateSubKey(RunKey);

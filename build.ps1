@@ -103,6 +103,16 @@ try {
         throw 'Publish did not produce TapoCam.App.exe.'
     }
 
+    Write-Host '==> Publishing the update helper'
+    $updaterPublish = Join-Path $stage 'updater'
+    Invoke-Dotnet publish (Join-Path $PSScriptRoot 'src/TapoCam.Updater/TapoCam.Updater.csproj') `
+        --configuration Release --output $updaterPublish
+    $updater = Join-Path $updaterPublish 'TapoCam.Updater.exe'
+    if (-not (Test-Path -LiteralPath $updater -PathType Leaf)) {
+        throw 'Publish did not produce TapoCam.Updater.exe.'
+    }
+    Copy-Item -LiteralPath $updater -Destination $publish
+
     $tools = Join-Path $publish 'tools'
     $licenses = Join-Path $publish 'licenses'
     New-Item -Path $tools, $licenses -ItemType Directory -Force | Out-Null

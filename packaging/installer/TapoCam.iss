@@ -39,6 +39,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[Registry]
+Root: HKCU; Subkey: "Software\TapoCam"; ValueName: "InstallerManaged"; ValueType: dword; ValueData: "1"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\TapoCam"; ValueName: "InstallPath"; ValueType: string; ValueData: "{app}"; Flags: uninsdeletevalue
+
 [Icons]
 Name: "{autoprograms}\TapoCam"; Filename: "{app}\TapoCam.App.exe"
 Name: "{autodesktop}\TapoCam"; Filename: "{app}\TapoCam.App.exe"; Tasks: desktopicon
